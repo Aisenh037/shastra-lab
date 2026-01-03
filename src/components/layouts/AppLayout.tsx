@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   GitCompare,
+  Calendar,
   Files
 } from 'lucide-react';
 import { useState } from 'react';
@@ -28,6 +29,7 @@ const navItems = [
   { path: '/analyze', label: 'Analyze Paper', icon: FileSearch },
   { path: '/batch-analyze', label: 'Batch Analyze', icon: Files },
   { path: '/compare', label: 'Compare Papers', icon: GitCompare },
+  { path: '/year-over-year', label: 'Year Trends', icon: Calendar },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
 ];
