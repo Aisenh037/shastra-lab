@@ -29,7 +29,7 @@ const CATEGORY_INFO = {
 export default function Achievements() {
   const { user } = useAuth();
   const { achievements, unlockedKeys, isLoading, checkAndUpdate } = useAchievements();
-  const { streak, isLoading: streakLoading, useFreeze, addFreezes } = useStreak();
+  const { streak, isLoading: streakLoading, useFreeze, addFreezes, recoverStreak } = useStreak();
   const { checkAndNotify } = useReminders();
 
   // Check for new achievements when page loads
@@ -110,9 +110,12 @@ export default function Achievements() {
           <StreakFreeze
             freezeCount={streak.freezeCount}
             streakAtRisk={streak.streakAtRisk}
+            streakLost={streak.currentStreak === 0 && streak.longestStreak > 0}
+            previousStreak={streak.longestStreak}
             currentStreak={streak.currentStreak}
             onUseFreeze={useFreeze}
             onAddFreezes={addFreezes}
+            onRecoverStreak={recoverStreak}
           />
           <ReminderSettings />
         </div>
