@@ -11,7 +11,8 @@ import {
   LogOut,
   GraduationCap,
   Menu,
-  X
+  X,
+  Files
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/syllabi', label: 'Syllabi', icon: BookOpen },
   { path: '/analyze', label: 'Analyze Paper', icon: FileSearch },
+  { path: '/batch-analyze', label: 'Batch Analyze', icon: Files },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
 ];
