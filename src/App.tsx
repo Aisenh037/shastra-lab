@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Syllabi from "./pages/Syllabi";
 import Analyze from "./pages/Analyze";
 import BatchAnalyze from "./pages/BatchAnalyze";
+import PaperComparison from "./pages/PaperComparison";
 import Questions from "./pages/Questions";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/syllabi" element={<Syllabi />} />
             <Route path="/analyze" element={<Analyze />} />
             <Route path="/batch-analyze" element={<BatchAnalyze />} />
+            <Route path="/compare" element={<PaperComparison />} />
             <Route path="/questions" element={<Questions />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="*" element={<NotFound />} />
