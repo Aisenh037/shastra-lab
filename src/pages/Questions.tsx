@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Search, Filter, Download, ChevronDown, ChevronUp, Library } from 'lucide-react';
+import { Search, Filter, Download, ChevronDown, ChevronUp, Library, FileJson, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface Question {
@@ -110,24 +111,65 @@ export default function Questions() {
     setFilteredQuestions(filtered);
   };
 
-  const exportQuestions = () => {
-    const exportData = filteredQuestions.map(q => ({
+  const getExportData = () => {
+    return filteredQuestions.map(q => ({
       question: q.question_text,
-      topic: q.topic,
-      difficulty: q.difficulty,
-      importance: q.importance_explanation,
-      paper: q.paper?.title,
-      year: q.paper?.year,
+      topic: q.topic || '',
+      difficulty: q.difficulty || '',
+      importance: q.importance_explanation || '',
+      paper: q.paper?.title || '',
+      exam_type: q.paper?.exam_type || '',
+      year: q.paper?.year || '',
     }));
+  };
 
+  const exportAsJson = () => {
+    const exportData = getExportData();
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'questions-export.json';
+    a.download = `questions-export-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Questions exported successfully');
+    toast.success(`Exported ${exportData.length} questions as JSON`);
+  };
+
+  const exportAsCsv = () => {
+    const exportData = getExportData();
+    
+    // CSV header
+    const headers = ['Question', 'Topic', 'Difficulty', 'Importance', 'Paper', 'Exam Type', 'Year'];
+    
+    // Escape CSV values
+    const escapeCSV = (value: string | number) => {
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    
+    // Build CSV rows
+    const rows = exportData.map(row => [
+      escapeCSV(row.question),
+      escapeCSV(row.topic),
+      escapeCSV(row.difficulty),
+      escapeCSV(row.importance),
+      escapeCSV(row.paper),
+      escapeCSV(row.exam_type),
+      escapeCSV(row.year),
+    ].join(','));
+    
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `questions-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${exportData.length} questions as CSV`);
   };
 
   const getDifficultyColor = (difficulty: string | null) => {
@@ -150,10 +192,25 @@ export default function Questions() {
               Browse and search all analyzed questions
             </p>
           </div>
-          <Button onClick={exportQuestions} variant="outline" disabled={filteredQuestions.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Export JSON
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={filteredQuestions.length === 0}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportAsCsv}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportAsJson}>
+                <FileJson className="h-4 w-4 mr-2" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Filters */}
