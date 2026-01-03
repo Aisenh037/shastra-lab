@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achievement_key: string
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_key: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_key?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       answer_submissions: {
         Row: {
           answer_image_url: string | null
@@ -396,6 +417,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_achievements: {
+        Args: { p_user_id: string }
+        Returns: {
+          achievement_key: string
+          newly_unlocked: boolean
+        }[]
+      }
       get_leaderboard: {
         Args: never
         Returns: {
@@ -406,6 +434,13 @@ export type Database = {
           total_max_score: number
           total_score: number
           user_id: string
+        }[]
+      }
+      get_user_achievements: {
+        Args: { p_user_id: string }
+        Returns: {
+          achievement_key: string
+          unlocked_at: string
         }[]
       }
       get_user_rank: {
