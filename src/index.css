@@ -4,123 +4,126 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
-/* Exam Analysis Platform Design System - Professional Institutional Look */
+/* ShastraLab Design System - Saffron & Deep Blue Shastra Aesthetic */
 
 @layer base {
   :root {
-    /* Navy blue primary palette */
-    --background: 220 20% 98%;
+    /* Warm cream background with saffron accents */
+    --background: 40 30% 97%;
     --foreground: 222 47% 11%;
 
-    --card: 0 0% 100%;
+    --card: 40 20% 99%;
     --card-foreground: 222 47% 11%;
 
-    --popover: 0 0% 100%;
+    --popover: 40 20% 99%;
     --popover-foreground: 222 47% 11%;
 
-    /* Deep navy blue */
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
+    /* Deep Indigo Blue - Primary */
+    --primary: 230 70% 35%;
+    --primary-foreground: 40 30% 97%;
 
-    /* Slate secondary */
-    --secondary: 215 20% 95%;
+    /* Warm cream secondary */
+    --secondary: 35 30% 94%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 215 20% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 35 20% 92%;
+    --muted-foreground: 222 20% 45%;
 
-    /* Accent - lighter blue */
-    --accent: 217 91% 60%;
-    --accent-foreground: 0 0% 100%;
+    /* Saffron accent */
+    --accent: 28 90% 55%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success green */
-    --success: 142 76% 36%;
+    /* Success - Emerald green */
+    --success: 152 60% 36%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning amber */
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    /* Warning - Deep saffron */
+    --warning: 32 95% 50%;
+    --warning-foreground: 222 47% 11%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --border: 35 20% 88%;
+    --input: 35 20% 88%;
+    --ring: 230 70% 35%;
 
     --radius: 0.625rem;
 
-    /* Chart colors */
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 68% 60%;
-    --chart-5: 0 84% 60%;
+    /* Chart colors - Shastra palette */
+    --chart-1: 230 70% 35%;
+    --chart-2: 28 90% 55%;
+    --chart-3: 152 60% 36%;
+    --chart-4: 280 60% 50%;
+    --chart-5: 0 70% 55%;
 
-    /* Sidebar */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 221 83% 53%;
+    /* Sidebar - Deep indigo */
+    --sidebar-background: 230 45% 15%;
+    --sidebar-foreground: 40 30% 95%;
+    --sidebar-primary: 28 90% 55%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 230 40% 22%;
+    --sidebar-accent-foreground: 40 30% 95%;
+    --sidebar-border: 230 40% 22%;
+    --sidebar-ring: 28 90% 55%;
 
     /* Custom gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(217 91% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(222 47% 11%), hsl(221 83% 40%));
+    --gradient-primary: linear-gradient(135deg, hsl(230 70% 35%), hsl(28 90% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(230 45% 15%), hsl(230 70% 30%));
     
     /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.1), 0 2px 4px -2px hsl(222 47% 11% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.1), 0 4px 6px -4px hsl(222 47% 11% / 0.1);
-    --shadow-glow: 0 0 20px hsl(221 83% 53% / 0.3);
+    --shadow-sm: 0 1px 2px 0 hsl(230 45% 15% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(230 45% 15% / 0.1), 0 2px 4px -2px hsl(230 45% 15% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(230 45% 15% / 0.1), 0 4px 6px -4px hsl(230 45% 15% / 0.1);
+    --shadow-glow: 0 0 20px hsl(28 90% 55% / 0.3);
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Deep indigo dark background */
+    --background: 230 40% 8%;
+    --foreground: 40 30% 95%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 230 40% 12%;
+    --card-foreground: 40 30% 95%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 230 40% 12%;
+    --popover-foreground: 40 30% 95%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
+    /* Lighter indigo for dark mode */
+    --primary: 225 65% 55%;
+    --primary-foreground: 230 40% 8%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 230 35% 18%;
+    --secondary-foreground: 40 30% 95%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 230 35% 18%;
+    --muted-foreground: 40 20% 65%;
 
-    --accent: 221 83% 53%;
-    --accent-foreground: 0 0% 100%;
+    /* Bright saffron accent */
+    --accent: 28 95% 58%;
+    --accent-foreground: 230 40% 8%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 0%;
+    --warning: 32 95% 55%;
+    --warning-foreground: 230 40% 8%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 230 35% 20%;
+    --input: 230 35% 20%;
+    --ring: 225 65% 55%;
 
-    --sidebar-background: 222 47% 5%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 12%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 217 33% 12%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 230 45% 6%;
+    --sidebar-foreground: 40 30% 95%;
+    --sidebar-primary: 28 95% 58%;
+    --sidebar-primary-foreground: 230 40% 8%;
+    --sidebar-accent: 230 40% 14%;
+    --sidebar-accent-foreground: 40 30% 95%;
+    --sidebar-border: 230 40% 14%;
+    --sidebar-ring: 28 95% 58%;
   }
 }
 
