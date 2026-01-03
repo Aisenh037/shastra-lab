@@ -15,6 +15,7 @@ import YearOverYear from "./pages/YearOverYear";
 import WrittenPractice from "./pages/WrittenPractice";
 import Questions from "./pages/Questions";
 import Reports from "./pages/Reports";
+import SubmissionHistory from "./pages/SubmissionHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/written-practice" element={<WrittenPractice />} />
             <Route path="/questions" element={<Questions />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/submission-history" element={<SubmissionHistory />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
