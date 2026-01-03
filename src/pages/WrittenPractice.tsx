@@ -68,6 +68,8 @@ export default function WrittenPractice() {
   const [answerImagePreview, setAnswerImagePreview] = useState<string | null>(null);
   const [submissionType, setSubmissionType] = useState<'typed' | 'handwritten'>('typed');
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isExtractingText, setIsExtractingText] = useState(false);
+  const [extractedText, setExtractedText] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [newQuestion, setNewQuestion] = useState({
@@ -161,13 +163,44 @@ export default function WrittenPractice() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAnswerImage(file);
+      setExtractedText(null);
+      
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setAnswerImagePreview(reader.result as string);
+      reader.onloadend = async () => {
+        const imageDataUrl = reader.result as string;
+        setAnswerImagePreview(imageDataUrl);
+        
+        // Automatically extract text using OCR
+        setIsExtractingText(true);
+        try {
+          const { data, error } = await supabase.functions.invoke('ocr-handwriting', {
+            body: { imageData: imageDataUrl },
+          });
+          
+          if (error) throw error;
+          
+          if (data?.text) {
+            setExtractedText(data.text);
+            setAnswerText(data.text);
+            toast({ 
+              title: 'Text extracted!', 
+              description: 'Handwritten text has been automatically extracted.' 
+            });
+          }
+        } catch (error) {
+          console.error('OCR error:', error);
+          toast({ 
+            title: 'OCR failed', 
+            description: 'Could not extract text. You can type it manually.',
+            variant: 'destructive' 
+          });
+        } finally {
+          setIsExtractingText(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -267,6 +300,7 @@ export default function WrittenPractice() {
     setAnswerText('');
     setAnswerImage(null);
     setAnswerImagePreview(null);
+    setExtractedText(null);
     setEvaluation(null);
   };
 
@@ -496,7 +530,7 @@ export default function WrittenPractice() {
                           onChange={handleImageUpload}
                           className="hidden"
                           id="answer-image"
-                          disabled={isEvaluating}
+                          disabled={isEvaluating || isExtractingText}
                         />
                         <label htmlFor="answer-image" className="cursor-pointer">
                           {answerImagePreview ? (
@@ -518,18 +552,44 @@ export default function WrittenPractice() {
                           )}
                         </label>
                       </div>
-                      {/* Also allow text for handwritten to help AI understand */}
+                      
+                      {/* OCR Status */}
+                      {isExtractingText && (
+                        <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          <span className="text-sm text-primary">Extracting text from handwriting...</span>
+                        </div>
+                      )}
+                      
+                      {extractedText && !isExtractingText && (
+                        <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle className="h-4 w-4 text-emerald-500" />
+                            <span className="text-sm font-medium text-emerald-500">Text extracted automatically</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Extracted/Editable Text */}
                       <div>
                         <Label className="text-sm text-muted-foreground">
-                          Optional: Type your answer for better AI evaluation
+                          {extractedText ? 'Extracted text (edit if needed):' : 'Optional: Type your answer for better AI evaluation'}
                         </Label>
                         <Textarea
                           value={answerText}
                           onChange={(e) => setAnswerText(e.target.value)}
-                          placeholder="Type your answer here for more accurate evaluation..."
-                          className="min-h-[100px] mt-2"
-                          disabled={isEvaluating}
+                          placeholder={extractedText ? '' : 'Type your answer here for more accurate evaluation...'}
+                          className="min-h-[150px] mt-2"
+                          disabled={isEvaluating || isExtractingText}
                         />
+                        {answerText && (
+                          <div className="flex justify-between text-sm text-muted-foreground mt-2">
+                            <span>Word count: {answerText.split(/\s+/).filter(Boolean).length}</span>
+                            {selectedQuestion.word_limit && (
+                              <span>Target: {selectedQuestion.word_limit} words</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -537,7 +597,7 @@ export default function WrittenPractice() {
                   <Button 
                     onClick={handleSubmitAnswer} 
                     className="w-full" 
-                    disabled={isEvaluating}
+                    disabled={isEvaluating || isExtractingText}
                   >
                     {isEvaluating ? (
                       <>

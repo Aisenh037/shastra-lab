@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.evaluate-answer]
 verify_jwt = true
+
+[functions.ocr-handwriting]
+verify_jwt = true
