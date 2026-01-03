@@ -1,1 +1,13 @@
 project_id = "twvbntdtnpawhfpygvyn"
+
+[functions.analyze-question]
+verify_jwt = true
+
+[functions.extract-questions]
+verify_jwt = true
+
+[functions.ocr-pdf]
+verify_jwt = true
+
+[functions.evaluate-answer]
+verify_jwt = true

@@ -14,6 +14,7 @@ import {
   X,
   GitCompare,
   Calendar,
+  PenLine,
   Files
 } from 'lucide-react';
 import { useState } from 'react';
@@ -30,6 +31,7 @@ const navItems = [
   { path: '/batch-analyze', label: 'Batch Analyze', icon: Files },
   { path: '/compare', label: 'Compare Papers', icon: GitCompare },
   { path: '/year-over-year', label: 'Year Trends', icon: Calendar },
+  { path: '/written-practice', label: 'Written Practice', icon: PenLine },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
 ];

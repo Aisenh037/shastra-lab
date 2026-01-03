@@ -12,6 +12,7 @@ import Analyze from "./pages/Analyze";
 import BatchAnalyze from "./pages/BatchAnalyze";
 import PaperComparison from "./pages/PaperComparison";
 import YearOverYear from "./pages/YearOverYear";
+import WrittenPractice from "./pages/WrittenPractice";
 import Questions from "./pages/Questions";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/batch-analyze" element={<BatchAnalyze />} />
             <Route path="/compare" element={<PaperComparison />} />
             <Route path="/year-over-year" element={<YearOverYear />} />
+            <Route path="/written-practice" element={<WrittenPractice />} />
             <Route path="/questions" element={<Questions />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="*" element={<NotFound />} />
