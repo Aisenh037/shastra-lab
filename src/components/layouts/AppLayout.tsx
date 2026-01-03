@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Menu,
   X,
+  GitCompare,
   Files
 } from 'lucide-react';
 import { useState } from 'react';
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/syllabi', label: 'Syllabi', icon: BookOpen },
   { path: '/analyze', label: 'Analyze Paper', icon: FileSearch },
   { path: '/batch-analyze', label: 'Batch Analyze', icon: Files },
+  { path: '/compare', label: 'Compare Papers', icon: GitCompare },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
 ];
