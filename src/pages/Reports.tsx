@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Minus, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, LineChart, Line, Legend, CartesianGrid 
+} from 'recharts';
 
 interface TopicFrequency {
   topic: string;
   count: number;
   percentage: number;
   weightage: 'High' | 'Medium' | 'Low';
+  trend?: 'up' | 'down' | 'stable';
+  trendPercentage?: number;
 }
 
 interface DifficultyBreakdown {
@@ -20,19 +26,27 @@ interface DifficultyBreakdown {
   color: string;
 }
 
-interface ExamStats {
-  examType: string;
-  questionCount: number;
-  paperCount: number;
+interface YearlyTrend {
+  year: number;
+  [key: string]: number;
+}
+
+interface TopicByPaper {
+  paper: string;
+  year: number | null;
+  topics: Record<string, number>;
 }
 
 export default function Reports() {
   const { user } = useAuth();
   const [topicFrequency, setTopicFrequency] = useState<TopicFrequency[]>([]);
   const [difficultyBreakdown, setDifficultyBreakdown] = useState<DifficultyBreakdown[]>([]);
-  const [examStats, setExamStats] = useState<ExamStats[]>([]);
+  const [yearlyTrends, setYearlyTrends] = useState<YearlyTrend[]>([]);
+  const [topTopics, setTopTopics] = useState<string[]>([]);
   const [totalQuestions, setTotalQuestions] = useState(0);
+  const [totalPapers, setTotalPapers] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedTopic, setSelectedTopic] = useState<string>('all');
 
   useEffect(() => {
     if (user) {
@@ -42,13 +56,13 @@ export default function Reports() {
 
   const fetchReportData = async () => {
     try {
-      // Fetch all analyzed questions
+      // Fetch all analyzed questions with paper details
       const { data: questions, error } = await supabase
         .from('questions')
         .select(`
           topic,
           difficulty,
-          paper:exam_papers(exam_type)
+          paper:exam_papers(id, title, exam_type, year)
         `)
         .eq('is_analyzed', true);
 
@@ -57,24 +71,87 @@ export default function Reports() {
       const total = questions?.length || 0;
       setTotalQuestions(total);
 
-      // Calculate topic frequency
-      const topicCounts: Record<string, number> = {};
+      // Get unique papers
+      const paperIds = new Set(questions?.map(q => {
+        const paper = Array.isArray(q.paper) ? q.paper[0] : q.paper;
+        return paper?.id;
+      }).filter(Boolean));
+      setTotalPapers(paperIds.size);
+
+      // Calculate topic frequency with year-based trends
+      const topicCounts: Record<string, { total: number; byYear: Record<number, number> }> = {};
+      
       questions?.forEach(q => {
         if (q.topic) {
-          topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1;
+          const paper = Array.isArray(q.paper) ? q.paper[0] : q.paper;
+          const year = paper?.year;
+          
+          if (!topicCounts[q.topic]) {
+            topicCounts[q.topic] = { total: 0, byYear: {} };
+          }
+          topicCounts[q.topic].total++;
+          
+          if (year) {
+            topicCounts[q.topic].byYear[year] = (topicCounts[q.topic].byYear[year] || 0) + 1;
+          }
         }
       });
 
+      // Calculate trends (comparing recent years)
       const sortedTopics = Object.entries(topicCounts)
-        .map(([topic, count]) => ({
-          topic,
-          count,
-          percentage: Math.round((count / total) * 100),
-          weightage: (count / total > 0.15 ? 'High' : count / total > 0.08 ? 'Medium' : 'Low') as 'High' | 'Medium' | 'Low',
-        }))
+        .map(([topic, data]) => {
+          const years = Object.keys(data.byYear).map(Number).sort();
+          let trend: 'up' | 'down' | 'stable' = 'stable';
+          let trendPercentage = 0;
+          
+          if (years.length >= 2) {
+            const recentYears = years.slice(-2);
+            const oldCount = data.byYear[recentYears[0]] || 0;
+            const newCount = data.byYear[recentYears[1]] || 0;
+            
+            if (oldCount > 0) {
+              trendPercentage = Math.round(((newCount - oldCount) / oldCount) * 100);
+              trend = trendPercentage > 10 ? 'up' : trendPercentage < -10 ? 'down' : 'stable';
+            } else if (newCount > 0) {
+              trend = 'up';
+              trendPercentage = 100;
+            }
+          }
+          
+          return {
+            topic,
+            count: data.total,
+            percentage: Math.round((data.total / total) * 100),
+            weightage: (data.total / total > 0.15 ? 'High' : data.total / total > 0.08 ? 'Medium' : 'Low') as 'High' | 'Medium' | 'Low',
+            trend,
+            trendPercentage: Math.abs(trendPercentage),
+          };
+        })
         .sort((a, b) => b.count - a.count);
 
       setTopicFrequency(sortedTopics);
+      
+      // Get top 5 topics for trend chart
+      const top5 = sortedTopics.slice(0, 5).map(t => t.topic);
+      setTopTopics(top5);
+
+      // Build yearly trend data
+      const yearSet = new Set<number>();
+      questions?.forEach(q => {
+        const paper = Array.isArray(q.paper) ? q.paper[0] : q.paper;
+        if (paper?.year) yearSet.add(paper.year);
+      });
+      
+      const years = Array.from(yearSet).sort();
+      const yearlyData: YearlyTrend[] = years.map(year => {
+        const yearEntry: YearlyTrend = { year };
+        top5.forEach(topic => {
+          yearEntry[topic] = topicCounts[topic]?.byYear[year] || 0;
+        });
+        return yearEntry;
+      });
+      
+      setYearlyTrends(yearlyData);
 
       // Calculate difficulty breakdown
       const difficultyCounts: Record<string, number> = { Easy: 0, Medium: 0, Hard: 0 };
@@ -90,37 +167,6 @@ export default function Reports() {
         { difficulty: 'Hard', count: difficultyCounts.Hard, color: 'hsl(var(--destructive))' },
       ]);
 
-      // Calculate exam type stats
-      const examCounts: Record<string, { questions: number; papers: Set<string> }> = {};
-      questions?.forEach(q => {
-        const paper = Array.isArray(q.paper) ? q.paper[0] : q.paper;
-        const examType = paper?.exam_type;
-        if (examType) {
-          if (!examCounts[examType]) {
-            examCounts[examType] = { questions: 0, papers: new Set() };
-          }
-          examCounts[examType].questions++;
-        }
-      });
-
-      // Get paper counts per exam type
-      const { data: papers } = await supabase
-        .from('exam_papers')
-        .select('exam_type');
-
-      papers?.forEach(p => {
-        if (p.exam_type && examCounts[p.exam_type]) {
-          examCounts[p.exam_type].papers.add(p.exam_type);
-        }
-      });
-
-      const examStatsData = Object.entries(examCounts).map(([examType, data]) => ({
-        examType,
-        questionCount: data.questions,
-        paperCount: data.papers.size,
-      }));
-
-      setExamStats(examStatsData);
     } catch (error) {
       console.error('Error fetching report data:', error);
     } finally {
@@ -146,6 +192,36 @@ export default function Reports() {
     }
   };
 
+  const getTrendIcon = (trend?: 'up' | 'down' | 'stable', percentage?: number) => {
+    if (!trend || trend === 'stable') return null;
+    if (trend === 'up') {
+      return (
+        <span className="flex items-center text-success text-xs">
+          <ArrowUpRight className="h-3 w-3" />
+          {percentage}%
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center text-destructive text-xs">
+        <ArrowDownRight className="h-3 w-3" />
+        {percentage}%
+      </span>
+    );
+  };
+
+  const CHART_COLORS = [
+    'hsl(var(--primary))',
+    'hsl(var(--accent))',
+    'hsl(var(--success))',
+    'hsl(var(--warning))',
+    'hsl(var(--destructive))',
+  ];
+
+  const filteredTopicFrequency = selectedTopic === 'all' 
+    ? topicFrequency 
+    : topicFrequency.filter(t => t.topic === selectedTopic);
+
   if (loading) {
     return (
       <AppLayout>
@@ -161,19 +237,19 @@ export default function Reports() {
       <div className="space-y-8">
         {/* Header */}
         <div className="animate-fade-in">
-          <h1 className="text-3xl font-display font-bold text-foreground">Reports</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">Reports & Trends</h1>
           <p className="text-muted-foreground mt-1">
-            Topic frequency analysis and exam trends
+            Topic frequency analysis, trends, and exam insights
           </p>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-slide-up">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Questions Analyzed</p>
+                  <p className="text-sm text-muted-foreground">Questions Analyzed</p>
                   <p className="text-3xl font-bold mt-1">{totalQuestions}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-primary/10 text-primary">
@@ -186,10 +262,23 @@ export default function Reports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="text-sm text-muted-foreground">Papers Analyzed</p>
+                  <p className="text-3xl font-bold mt-1">{totalPapers}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-accent/10 text-accent">
+                  <Calendar className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="text-sm text-muted-foreground">Unique Topics</p>
                   <p className="text-3xl font-bold mt-1">{topicFrequency.length}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-accent/10 text-accent">
+                <div className="p-3 rounded-lg bg-success/10 text-success">
                   <TrendingUp className="h-6 w-6" />
                 </div>
               </div>
@@ -199,16 +288,56 @@ export default function Reports() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Exam Types</p>
-                  <p className="text-3xl font-bold mt-1">{examStats.length}</p>
+                  <p className="text-sm text-muted-foreground">High Weightage</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {topicFrequency.filter(t => t.weightage === 'High').length}
+                  </p>
                 </div>
-                <div className="p-3 rounded-lg bg-success/10 text-success">
-                  <BarChart3 className="h-6 w-6" />
+                <div className="p-3 rounded-lg bg-warning/10 text-warning">
+                  <TrendingUp className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Year-over-Year Trends */}
+        {yearlyTrends.length > 1 && (
+          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Topic Trends Over Time
+              </CardTitle>
+              <CardDescription>
+                How frequently topics appear year-over-year (Top 5 topics)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={yearlyTrends}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis dataKey="year" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    {topTopics.map((topic, index) => (
+                      <Line
+                        key={topic}
+                        type="monotone"
+                        dataKey={topic}
+                        stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                        strokeWidth={2}
+                        dot={{ fill: CHART_COLORS[index % CHART_COLORS.length] }}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -301,13 +430,28 @@ export default function Reports() {
         {/* Topic Frequency Table */}
         <Card className="animate-slide-up" style={{ animationDelay: '400ms' }}>
           <CardHeader>
-            <CardTitle className="text-lg">Topic Weightage Analysis</CardTitle>
-            <CardDescription>
-              Topics ranked by frequency with academic weightage indicators
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Topic Weightage Analysis</CardTitle>
+                <CardDescription>
+                  Topics ranked by frequency with trend indicators
+                </CardDescription>
+              </div>
+              <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by topic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Topics</SelectItem>
+                  {topicFrequency.map(t => (
+                    <SelectItem key={t.topic} value={t.topic}>{t.topic}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
-            {topicFrequency.length > 0 ? (
+            {filteredTopicFrequency.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -317,20 +461,34 @@ export default function Reports() {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Questions</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Percentage</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Weightage</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Trend</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {topicFrequency.map((topic, index) => (
-                      <tr key={topic.topic} className="border-b last:border-0">
+                    {filteredTopicFrequency.map((topic, index) => (
+                      <tr key={topic.topic} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
                         <td className="py-3 px-4 text-muted-foreground">#{index + 1}</td>
                         <td className="py-3 px-4 font-medium">{topic.topic}</td>
                         <td className="py-3 px-4">{topic.count}</td>
-                        <td className="py-3 px-4">{topic.percentage}%</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 bg-muted rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-primary h-full rounded-full transition-all"
+                                style={{ width: `${Math.min(topic.percentage * 2, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm">{topic.percentage}%</span>
+                          </div>
+                        </td>
                         <td className="py-3 px-4">
                           <Badge className={`${getWeightageColor(topic.weightage)} flex items-center gap-1 w-fit`}>
                             {getWeightageIcon(topic.weightage)}
                             {topic.weightage}
                           </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          {getTrendIcon(topic.trend, topic.trendPercentage)}
                         </td>
                       </tr>
                     ))}
