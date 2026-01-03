@@ -4,8 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart3, TrendingUp, TrendingDown, Minus, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Minus, Calendar, ArrowUpRight, ArrowDownRight, Mail, Send, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, LineChart, Line, Legend, CartesianGrid 
@@ -37,8 +42,16 @@ interface TopicByPaper {
   topics: Record<string, number>;
 }
 
+interface EmailPreferences {
+  id?: string;
+  email: string;
+  frequency: 'weekly' | 'monthly' | 'both';
+  is_enabled: boolean;
+}
+
 export default function Reports() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [topicFrequency, setTopicFrequency] = useState<TopicFrequency[]>([]);
   const [difficultyBreakdown, setDifficultyBreakdown] = useState<DifficultyBreakdown[]>([]);
   const [yearlyTrends, setYearlyTrends] = useState<YearlyTrend[]>([]);
@@ -47,12 +60,129 @@ export default function Reports() {
   const [totalPapers, setTotalPapers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
+  
+  // Email preferences state
+  const [emailPrefs, setEmailPrefs] = useState<EmailPreferences>({
+    email: '',
+    frequency: 'weekly',
+    is_enabled: false,
+  });
+  const [savingPrefs, setSavingPrefs] = useState(false);
+  const [sendingReport, setSendingReport] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchReportData();
+      fetchEmailPreferences();
     }
   }, [user]);
+
+  const fetchEmailPreferences = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('email_report_preferences')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setEmailPrefs({
+          id: data.id,
+          email: data.email,
+          frequency: data.frequency as 'weekly' | 'monthly' | 'both',
+          is_enabled: data.is_enabled,
+        });
+      } else {
+        setEmailPrefs({
+          email: user?.email || '',
+          frequency: 'weekly',
+          is_enabled: false,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching email preferences:', error);
+    }
+  };
+
+  const saveEmailPreferences = async () => {
+    if (!user) return;
+    
+    setSavingPrefs(true);
+    try {
+      if (emailPrefs.id) {
+        const { error } = await supabase
+          .from('email_report_preferences')
+          .update({
+            email: emailPrefs.email,
+            frequency: emailPrefs.frequency,
+            is_enabled: emailPrefs.is_enabled,
+          })
+          .eq('id', emailPrefs.id);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('email_report_preferences')
+          .insert({
+            user_id: user.id,
+            email: emailPrefs.email,
+            frequency: emailPrefs.frequency,
+            is_enabled: emailPrefs.is_enabled,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setEmailPrefs(prev => ({ ...prev, id: data.id }));
+      }
+
+      toast({
+        title: 'Preferences saved',
+        description: emailPrefs.is_enabled 
+          ? `You'll receive ${emailPrefs.frequency} progress reports at ${emailPrefs.email}`
+          : 'Email reports have been disabled',
+      });
+    } catch (error: any) {
+      console.error('Error saving preferences:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save preferences',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const sendReportNow = async (reportType: 'weekly' | 'monthly') => {
+    setSendingReport(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-progress-report', {
+        body: {
+          report_type: 'manual',
+          email: emailPrefs.email || user?.email,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Report sent!',
+        description: `Your ${reportType} progress report has been sent to ${emailPrefs.email || user?.email}`,
+      });
+    } catch (error: any) {
+      console.error('Error sending report:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send report',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingReport(false);
+    }
+  };
 
   const fetchReportData = async () => {
     try {
@@ -300,6 +430,94 @@ export default function Reports() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Email Report Preferences */}
+        <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              Email Progress Reports
+            </CardTitle>
+            <CardDescription>
+              Receive automated performance insights directly in your inbox
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable email reports</Label>
+                <p className="text-sm text-muted-foreground">
+                  Get regular updates on your practice performance
+                </p>
+              </div>
+              <Switch
+                checked={emailPrefs.is_enabled}
+                onCheckedChange={(checked) => setEmailPrefs(prev => ({ ...prev, is_enabled: checked }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="report-email">Email address</Label>
+                <Input
+                  id="report-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={emailPrefs.email}
+                  onChange={(e) => setEmailPrefs(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Frequency</Label>
+                <Select
+                  value={emailPrefs.frequency}
+                  onValueChange={(value: 'weekly' | 'monthly' | 'both') => setEmailPrefs(prev => ({ ...prev, frequency: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="both">Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={saveEmailPreferences} disabled={savingPrefs}>
+                {savingPrefs ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Preferences'
+                )}
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => sendReportNow('weekly')}
+                disabled={sendingReport || !emailPrefs.email}
+              >
+                {sendingReport ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Report Now
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Year-over-Year Trends */}
         {yearlyTrends.length > 1 && (
