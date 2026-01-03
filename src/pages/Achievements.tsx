@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useStreak } from '@/hooks/useStreak';
+import { useReminders } from '@/hooks/useReminders';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +13,7 @@ import {
 } from '@/components/AchievementBadge';
 import { StreakDisplay } from '@/components/StreakDisplay';
 import { PracticeCalendar } from '@/components/PracticeCalendar';
+import { ReminderSettings } from '@/components/ReminderSettings';
 import { motion } from 'framer-motion';
 import { Trophy, Star, Lock, Flame, Target, Medal, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,6 +29,7 @@ export default function Achievements() {
   const { user } = useAuth();
   const { achievements, unlockedKeys, isLoading, checkAndUpdate } = useAchievements();
   const { streak, isLoading: streakLoading } = useStreak();
+  const { checkAndNotify } = useReminders();
 
   // Check for new achievements when page loads
   useEffect(() => {
@@ -34,6 +37,13 @@ export default function Achievements() {
       checkAndUpdate();
     }
   }, [user, checkAndUpdate]);
+
+  // Check if reminder should be sent
+  useEffect(() => {
+    if (!streakLoading) {
+      checkAndNotify(streak.practicedToday);
+    }
+  }, [streakLoading, streak.practicedToday, checkAndNotify]);
 
   const allAchievements = Object.values(ACHIEVEMENTS);
   const unlockedCount = unlockedKeys.length;
@@ -93,8 +103,11 @@ export default function Achievements() {
           />
         )}
 
-        {/* Weekly Practice Calendar */}
-        <PracticeCalendar />
+        {/* Practice Calendar and Reminder Settings */}
+        <div className="grid gap-6 md:grid-cols-[1fr_300px]">
+          <PracticeCalendar />
+          <ReminderSettings />
+        </div>
 
         {/* Progress Card */}
         <Card className="bg-gradient-to-r from-primary/5 to-accent/5">
