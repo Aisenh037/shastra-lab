@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { FileSearch, Sparkles, Check, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileSearch, Sparkles, Check, Loader2, AlertCircle, ChevronDown, ChevronUp, FileText, Type } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import PdfUploader from '@/components/PdfUploader';
 
 interface Syllabus {
   id: string;
@@ -303,10 +305,10 @@ export default function Analyze() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileSearch className="h-5 w-5 text-primary" />
-                Paste Exam Paper
+                Upload or Paste Exam Paper
               </CardTitle>
               <CardDescription>
-                Paste the raw text of an exam paper. AI will extract individual questions.
+                Upload a PDF or paste raw text. AI will extract individual questions.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -357,17 +359,41 @@ export default function Analyze() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="raw-text">Exam Paper Text *</Label>
-                <Textarea
-                  id="raw-text"
-                  placeholder="Paste the full exam paper text here. Include all questions exactly as they appear..."
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  rows={12}
-                  className="font-mono text-sm"
-                />
-              </div>
+              <Tabs defaultValue="pdf" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="pdf" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Upload PDF
+                  </TabsTrigger>
+                  <TabsTrigger value="text" className="flex items-center gap-2">
+                    <Type className="h-4 w-4" />
+                    Paste Text
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="pdf" className="mt-4">
+                  <PdfUploader
+                    onTextExtracted={setRawText}
+                    disabled={loading}
+                  />
+                  {rawText && (
+                    <div className="mt-4 p-3 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Extracted {rawText.length.toLocaleString()} characters from PDF
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+                <TabsContent value="text" className="mt-4">
+                  <Textarea
+                    id="raw-text"
+                    placeholder="Paste the full exam paper text here. Include all questions exactly as they appear..."
+                    value={rawText}
+                    onChange={(e) => setRawText(e.target.value)}
+                    rows={12}
+                    className="font-mono text-sm"
+                  />
+                </TabsContent>
+              </Tabs>
 
               <Button
                 onClick={handleExtract}
