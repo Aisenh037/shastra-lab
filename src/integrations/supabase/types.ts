@@ -484,9 +484,11 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: {
           current_streak: number
+          freeze_count: number
           last_practice_date: string
           longest_streak: number
           practiced_today: boolean
+          streak_at_risk: boolean
         }[]
       }
       has_role: {

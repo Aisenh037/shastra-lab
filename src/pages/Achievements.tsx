@@ -12,10 +12,11 @@ import {
   ACHIEVEMENTS 
 } from '@/components/AchievementBadge';
 import { StreakDisplay } from '@/components/StreakDisplay';
+import { StreakFreeze } from '@/components/StreakFreeze';
 import { PracticeCalendar } from '@/components/PracticeCalendar';
 import { ReminderSettings } from '@/components/ReminderSettings';
 import { motion } from 'framer-motion';
-import { Trophy, Star, Lock, Flame, Target, Medal, Calendar } from 'lucide-react';
+import { Trophy, Star, Lock, Flame, Target, Medal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_INFO = {
@@ -28,7 +29,7 @@ const CATEGORY_INFO = {
 export default function Achievements() {
   const { user } = useAuth();
   const { achievements, unlockedKeys, isLoading, checkAndUpdate } = useAchievements();
-  const { streak, isLoading: streakLoading } = useStreak();
+  const { streak, isLoading: streakLoading, useFreeze, addFreezes } = useStreak();
   const { checkAndNotify } = useReminders();
 
   // Check for new achievements when page loads
@@ -103,9 +104,16 @@ export default function Achievements() {
           />
         )}
 
-        {/* Practice Calendar and Reminder Settings */}
-        <div className="grid gap-6 md:grid-cols-[1fr_300px]">
+        {/* Practice Calendar, Streak Freeze, and Reminder Settings */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <PracticeCalendar />
+          <StreakFreeze
+            freezeCount={streak.freezeCount}
+            streakAtRisk={streak.streakAtRisk}
+            currentStreak={streak.currentStreak}
+            onUseFreeze={useFreeze}
+            onAddFreezes={addFreezes}
+          />
           <ReminderSettings />
         </div>
 

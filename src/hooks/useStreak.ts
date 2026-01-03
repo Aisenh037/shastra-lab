@@ -7,6 +7,8 @@ interface StreakInfo {
   longestStreak: number;
   lastPracticeDate: string | null;
   practicedToday: boolean;
+  freezeCount: number;
+  streakAtRisk: boolean;
 }
 
 export function useStreak() {
@@ -16,6 +18,8 @@ export function useStreak() {
     longestStreak: 0,
     lastPracticeDate: null,
     practicedToday: false,
+    freezeCount: 0,
+    streakAtRisk: false,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,25 +30,29 @@ export function useStreak() {
         longestStreak: 0,
         lastPracticeDate: null,
         practicedToday: false,
+        freezeCount: 0,
+        streakAtRisk: false,
       });
       setIsLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase.rpc('get_user_streak', {
+      const { data, error } = await supabase.rpc('get_user_streak' as any, {
         p_user_id: user.id,
       });
 
       if (error) throw error;
       
-      if (data && data.length > 0) {
-        const row = data[0];
+      if (data && Array.isArray(data) && data.length > 0) {
+        const row = data[0] as any;
         setStreak({
           currentStreak: row.current_streak ?? 0,
           longestStreak: row.longest_streak ?? 0,
           lastPracticeDate: row.last_practice_date,
           practicedToday: row.practiced_today ?? false,
+          freezeCount: row.freeze_count ?? 0,
+          streakAtRisk: row.streak_at_risk ?? false,
         });
       }
     } catch (error) {
@@ -91,10 +99,76 @@ export function useStreak() {
     fetchStreak();
   }, [fetchStreak]);
 
+  const useFreeze = useCallback(async () => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('use_streak_freeze' as any, {
+        p_user_id: user.id,
+      });
+
+      if (error) throw error;
+      
+      if (data && Array.isArray(data) && data.length > 0) {
+        const row = data[0] as any;
+        if (row.success) {
+          setStreak(prev => ({
+            ...prev,
+            freezeCount: row.freezes_remaining ?? 0,
+            streakAtRisk: false,
+          }));
+        }
+        return {
+          success: row.success,
+          freezesRemaining: row.freezes_remaining,
+          message: row.message,
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error using freeze:', error);
+      return null;
+    }
+  }, [user]);
+
+  const addFreezes = useCallback(async (count: number = 1) => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('add_streak_freezes' as any, {
+        p_user_id: user.id,
+        p_count: count,
+      });
+
+      if (error) throw error;
+      
+      if (data && Array.isArray(data) && data.length > 0) {
+        const row = data[0] as any;
+        setStreak(prev => ({
+          ...prev,
+          freezeCount: row.new_freeze_count ?? prev.freezeCount + count,
+        }));
+        return row.new_freeze_count;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error adding freezes:', error);
+      return null;
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchStreak();
+  }, [fetchStreak]);
+
   return {
     streak,
     isLoading,
     refresh: fetchStreak,
     recordPractice,
+    useFreeze,
+    addFreezes,
   };
 }
