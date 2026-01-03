@@ -11,6 +11,7 @@ import {
   ACHIEVEMENTS 
 } from '@/components/AchievementBadge';
 import { StreakDisplay } from '@/components/StreakDisplay';
+import { PracticeCalendar } from '@/components/PracticeCalendar';
 import { motion } from 'framer-motion';
 import { Trophy, Star, Lock, Flame, Target, Medal, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -91,6 +92,9 @@ export default function Achievements() {
             variant="card"
           />
         )}
+
+        {/* Weekly Practice Calendar */}
+        <PracticeCalendar />
 
         {/* Progress Card */}
         <Card className="bg-gradient-to-r from-primary/5 to-accent/5">
