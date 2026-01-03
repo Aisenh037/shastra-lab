@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { GitCompare, FileText, BookOpen, BarChart3, Link2 } from 'lucide-react';
+import { GitCompare, FileText, BookOpen, BarChart3, Link2, TrendingUp, TrendingDown, Minus, PieChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ExamPaper {
@@ -162,6 +162,66 @@ export default function PaperComparison() {
     return questions.filter(q => hasMatchingTopic(q)).length;
   };
 
+  // Calculate overlap percentage
+  const calculateOverlapStats = useMemo(() => {
+    if (!paper1Id || !paper2Id) return null;
+    
+    const topics1 = new Set(paper1Questions.map(q => q.topic).filter(Boolean));
+    const topics2 = new Set(paper2Questions.map(q => q.topic).filter(Boolean));
+    const allTopics = new Set([...topics1, ...topics2]);
+    
+    const overlapPercentage = allTopics.size > 0 
+      ? (commonTopics.length / allTopics.size) * 100 
+      : 0;
+    
+    const questionOverlap1 = paper1Questions.length > 0 
+      ? (getMatchingCount(paper1Questions) / paper1Questions.length) * 100 
+      : 0;
+    const questionOverlap2 = paper2Questions.length > 0 
+      ? (getMatchingCount(paper2Questions) / paper2Questions.length) * 100 
+      : 0;
+    
+    return {
+      topicOverlap: overlapPercentage,
+      totalUniqueTopics: allTopics.size,
+      paper1Coverage: questionOverlap1,
+      paper2Coverage: questionOverlap2,
+      uniqueToPaper1: getUniqueTopics(paper1Questions, paper2Questions).length,
+      uniqueToPaper2: getUniqueTopics(paper2Questions, paper1Questions).length,
+    };
+  }, [paper1Id, paper2Id, paper1Questions, paper2Questions, commonTopics]);
+
+  // Calculate difficulty shift
+  const difficultyShift = useMemo(() => {
+    if (!paper1Id || !paper2Id) return null;
+    
+    const stats1 = getDifficultyStats(paper1Questions);
+    const stats2 = getDifficultyStats(paper2Questions);
+    
+    const total1 = paper1Questions.length || 1;
+    const total2 = paper2Questions.length || 1;
+    
+    const easyPct1 = (stats1.easy / total1) * 100;
+    const easyPct2 = (stats2.easy / total2) * 100;
+    const mediumPct1 = (stats1.medium / total1) * 100;
+    const mediumPct2 = (stats2.medium / total2) * 100;
+    const hardPct1 = (stats1.hard / total1) * 100;
+    const hardPct2 = (stats2.hard / total2) * 100;
+    
+    // Calculate weighted difficulty score (easy=1, medium=2, hard=3)
+    const avgDiff1 = (stats1.easy * 1 + stats1.medium * 2 + stats1.hard * 3) / total1;
+    const avgDiff2 = (stats2.easy * 1 + stats2.medium * 2 + stats2.hard * 3) / total2;
+    
+    return {
+      easyShift: easyPct2 - easyPct1,
+      mediumShift: mediumPct2 - mediumPct1,
+      hardShift: hardPct2 - hardPct1,
+      avgDiff1,
+      avgDiff2,
+      difficultyChange: avgDiff2 - avgDiff1,
+    };
+  }, [paper1Id, paper2Id, paper1Questions, paper2Questions]);
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -274,6 +334,170 @@ export default function PaperComparison() {
               </Card>
             )}
           </div>
+        )}
+
+        {/* Summary Comparison Report */}
+        {paper1Id && paper2Id && calculateOverlapStats && difficultyShift && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Comparison Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Topic Overlap */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Topic Overlap
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="text-center p-4 bg-muted rounded-lg">
+                      <div className="text-3xl font-bold text-primary">
+                        {calculateOverlapStats.topicOverlap.toFixed(0)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Topic Similarity
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-lg font-semibold">{commonTopics.length}</div>
+                        <div className="text-xs text-muted-foreground">Common</div>
+                      </div>
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-lg font-semibold">{calculateOverlapStats.uniqueToPaper1}</div>
+                        <div className="text-xs text-muted-foreground">Only P1</div>
+                      </div>
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-lg font-semibold">{calculateOverlapStats.uniqueToPaper2}</div>
+                        <div className="text-xs text-muted-foreground">Only P2</div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Paper 1 coverage</span>
+                        <span className="font-medium">{calculateOverlapStats.paper1Coverage.toFixed(0)}%</span>
+                      </div>
+                      <Progress value={calculateOverlapStats.paper1Coverage} className="h-2" />
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Paper 2 coverage</span>
+                        <span className="font-medium">{calculateOverlapStats.paper2Coverage.toFixed(0)}%</span>
+                      </div>
+                      <Progress value={calculateOverlapStats.paper2Coverage} className="h-2" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Difficulty Shift */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Difficulty Shift
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="text-center p-4 bg-muted rounded-lg">
+                      <div className={cn(
+                        "text-3xl font-bold flex items-center justify-center gap-1",
+                        difficultyShift.difficultyChange > 0.1 && "text-rose-500",
+                        difficultyShift.difficultyChange < -0.1 && "text-emerald-500",
+                        Math.abs(difficultyShift.difficultyChange) <= 0.1 && "text-muted-foreground"
+                      )}>
+                        {difficultyShift.difficultyChange > 0.1 && <TrendingUp className="h-6 w-6" />}
+                        {difficultyShift.difficultyChange < -0.1 && <TrendingDown className="h-6 w-6" />}
+                        {Math.abs(difficultyShift.difficultyChange) <= 0.1 && <Minus className="h-6 w-6" />}
+                        {difficultyShift.difficultyChange > 0 ? '+' : ''}{difficultyShift.difficultyChange.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {difficultyShift.difficultyChange > 0.1 ? 'Paper 2 is harder' : 
+                         difficultyShift.difficultyChange < -0.1 ? 'Paper 2 is easier' : 'Similar difficulty'}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {(['easy', 'medium', 'hard'] as const).map(level => {
+                        const shift = level === 'easy' ? difficultyShift.easyShift :
+                                     level === 'medium' ? difficultyShift.mediumShift :
+                                     difficultyShift.hardShift;
+                        return (
+                          <div key={level} className="flex items-center justify-between text-sm">
+                            <span className="capitalize w-16">{level}</span>
+                            <div className={cn(
+                              "flex items-center gap-1 font-medium",
+                              shift > 5 && level === 'hard' && "text-rose-500",
+                              shift < -5 && level === 'hard' && "text-emerald-500",
+                              shift > 5 && level === 'easy' && "text-emerald-500",
+                              shift < -5 && level === 'easy' && "text-rose-500"
+                            )}>
+                              {shift > 0 ? <TrendingUp className="h-3 w-3" /> : 
+                               shift < 0 ? <TrendingDown className="h-3 w-3" /> : 
+                               <Minus className="h-3 w-3" />}
+                              {shift > 0 ? '+' : ''}{shift.toFixed(0)}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-center pt-2">
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-sm font-semibold">{difficultyShift.avgDiff1.toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground">P1 Avg</div>
+                      </div>
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-sm font-semibold">{difficultyShift.avgDiff2.toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground">P2 Avg</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Quick Comparison
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <span className="text-sm">Total Questions</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{paper1Questions.length}</Badge>
+                        <span className="text-muted-foreground">vs</span>
+                        <Badge variant="outline">{paper2Questions.length}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <span className="text-sm">Unique Topics</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{getTopicStats(paper1Questions).length}</Badge>
+                        <span className="text-muted-foreground">vs</span>
+                        <Badge variant="outline">{getTopicStats(paper2Questions).length}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <span className="text-sm">Hard Questions</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-rose-500/10 text-rose-500 border-rose-500/20">
+                          {getDifficultyStats(paper1Questions).hard}
+                        </Badge>
+                        <span className="text-muted-foreground">vs</span>
+                        <Badge variant="outline" className="bg-rose-500/10 text-rose-500 border-rose-500/20">
+                          {getDifficultyStats(paper2Questions).hard}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <span className="text-sm">Matching Topics</span>
+                      <Badge variant="secondary" className="bg-primary/10 text-primary">
+                        {commonTopics.length} topics
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Side-by-Side Comparison */}
