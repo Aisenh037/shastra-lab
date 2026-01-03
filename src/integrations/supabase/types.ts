@@ -107,6 +107,7 @@ export type Database = {
         Row: {
           created_at: string
           current_streak: number
+          freeze_count: number
           id: string
           last_practice_date: string | null
           longest_streak: number
@@ -116,6 +117,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_streak?: number
+          freeze_count?: number
           id?: string
           last_practice_date?: string | null
           longest_streak?: number
@@ -125,6 +127,7 @@ export type Database = {
         Update: {
           created_at?: string
           current_streak?: number
+          freeze_count?: number
           id?: string
           last_practice_date?: string | null
           longest_streak?: number
