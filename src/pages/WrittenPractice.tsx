@@ -40,6 +40,18 @@ interface PracticeQuestion {
   key_points: string[];
   topic: string | null;
   subject: string | null;
+  mock_test_id?: string | null;
+}
+
+interface MockTest {
+  id: string;
+  title: string;
+  description: string | null;
+  exam_type: string;
+  subject: string | null;
+  is_template: boolean;
+  time_limit_minutes: number | null;
+  questions: PracticeQuestion[];
 }
 
 interface Evaluation {
@@ -62,6 +74,7 @@ export default function WrittenPractice() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
+  const [pyqTemplates, setPyqTemplates] = useState<MockTest[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<PracticeQuestion | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [answerImages, setAnswerImages] = useState<File[]>([]);
@@ -73,6 +86,9 @@ export default function WrittenPractice() {
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
+  const [activeTab, setActiveTab] = useState<'my-questions' | 'pyq-templates'>('pyq-templates');
+  const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+  const [showModelAnswer, setShowModelAnswer] = useState(false);
   const [newQuestion, setNewQuestion] = useState({
     question_text: '',
     question_type: 'essay',
@@ -86,13 +102,17 @@ export default function WrittenPractice() {
   useEffect(() => {
     if (user) {
       fetchQuestions();
+      fetchPyqTemplates();
     }
   }, [user]);
 
   const fetchQuestions = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from('practice_questions')
       .select('*')
+      .eq('user_id', user.id)
+      .is('mock_test_id', null)
       .order('created_at', { ascending: false });
     
     if (data) {
@@ -108,9 +128,57 @@ export default function WrittenPractice() {
           : [],
         topic: q.topic,
         subject: q.subject,
+        mock_test_id: q.mock_test_id,
       }));
       setQuestions(mappedQuestions);
     }
+  };
+
+  const fetchPyqTemplates = async () => {
+    // Fetch template mock tests
+    const { data: mockTests } = await supabase
+      .from('mock_tests')
+      .select('*')
+      .eq('is_template', true)
+      .order('title', { ascending: true });
+    
+    if (!mockTests) return;
+
+    // Fetch questions for each template
+    const templatesWithQuestions: MockTest[] = [];
+    for (const test of mockTests) {
+      const { data: questions } = await supabase
+        .from('practice_questions')
+        .select('*')
+        .eq('mock_test_id', test.id)
+        .order('created_at', { ascending: true });
+      
+      templatesWithQuestions.push({
+        id: test.id,
+        title: test.title,
+        description: test.description,
+        exam_type: test.exam_type,
+        subject: test.subject,
+        is_template: test.is_template,
+        time_limit_minutes: test.time_limit_minutes,
+        questions: (questions || []).map(q => ({
+          id: q.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          max_marks: q.max_marks,
+          word_limit: q.word_limit,
+          model_answer: q.model_answer,
+          key_points: Array.isArray(q.key_points) 
+            ? (q.key_points as unknown[]).map(kp => String(kp)) 
+            : [],
+          topic: q.topic,
+          subject: q.subject,
+          mock_test_id: q.mock_test_id,
+        })),
+      });
+    }
+    
+    setPyqTemplates(templatesWithQuestions);
   };
 
   const handleAddQuestion = async () => {
@@ -451,49 +519,160 @@ export default function WrittenPractice() {
 
         {/* Main Content */}
         {!selectedQuestion ? (
-          // Question Selection
-          <div className="grid gap-4">
-            {questions.length === 0 ? (
-              <Card className="py-12">
-                <CardContent className="text-center">
-                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Practice Questions</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Add your first question to start practicing written answers
-                  </p>
-                  <Button onClick={() => setShowAddQuestion(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Question
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              questions.map((q) => (
-                <Card 
-                  key={q.id} 
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => setSelectedQuestion(q)}
-                >
-                  <CardContent className="py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <p className="font-medium line-clamp-2">{q.question_text}</p>
-                        <div className="flex gap-2 mt-2">
-                          {q.subject && <Badge variant="outline">{q.subject}</Badge>}
-                          {q.topic && <Badge variant="secondary">{q.topic}</Badge>}
-                          <Badge>{q.max_marks} marks</Badge>
-                          {q.word_limit && <Badge variant="outline">{q.word_limit} words</Badge>}
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        Practice
-                      </Button>
-                    </div>
+          // Question Selection with Tabs
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'my-questions' | 'pyq-templates')}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="pyq-templates" className="gap-2">
+                <FileText className="h-4 w-4" />
+                UPSC PYQ Templates
+              </TabsTrigger>
+              <TabsTrigger value="my-questions" className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                My Questions
+              </TabsTrigger>
+            </TabsList>
+
+            {/* PYQ Templates Tab */}
+            <TabsContent value="pyq-templates" className="space-y-4">
+              {pyqTemplates.length === 0 ? (
+                <Card className="py-12">
+                  <CardContent className="text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No PYQ Templates Available</h3>
+                    <p className="text-muted-foreground">
+                      Previous year question templates will appear here
+                    </p>
                   </CardContent>
                 </Card>
-              ))
-            )}
-          </div>
+              ) : (
+                pyqTemplates.map((template) => (
+                  <Card key={template.id} className="overflow-hidden">
+                    <CardHeader 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setExpandedTemplate(expandedTemplate === template.id ? null : template.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Target className="h-5 w-5 text-primary" />
+                            {template.title}
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            {template.description}
+                          </CardDescription>
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="outline">{template.exam_type}</Badge>
+                            {template.subject && <Badge variant="secondary">{template.subject}</Badge>}
+                            <Badge>{template.questions.length} questions</Badge>
+                            {template.time_limit_minutes && (
+                              <Badge variant="outline">{template.time_limit_minutes} min</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          {expandedTemplate === template.id ? 'Collapse' : 'Expand'}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    
+                    {expandedTemplate === template.id && (
+                      <CardContent className="border-t pt-4 space-y-3">
+                        {template.questions.map((q, idx) => (
+                          <div 
+                            key={q.id}
+                            className="p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    Q{idx + 1}
+                                  </span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {q.max_marks} marks
+                                  </Badge>
+                                  {q.word_limit && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {q.word_limit} words
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="font-medium text-foreground">{q.question_text}</p>
+                                <div className="flex gap-2 mt-2">
+                                  {q.subject && <Badge variant="secondary" className="text-xs">{q.subject}</Badge>}
+                                  {q.topic && <Badge className="text-xs">{q.topic}</Badge>}
+                                </div>
+                                {q.model_answer && (
+                                  <div className="mt-3 flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-amber-500" />
+                                    <span className="text-sm text-muted-foreground">Model answer available</span>
+                                  </div>
+                                )}
+                              </div>
+                              <Button 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedQuestion(q);
+                                  setShowModelAnswer(false);
+                                }}
+                              >
+                                Practice
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    )}
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+
+            {/* My Questions Tab */}
+            <TabsContent value="my-questions" className="space-y-4">
+              {questions.length === 0 ? (
+                <Card className="py-12">
+                  <CardContent className="text-center">
+                    <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Practice Questions</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Add your first question to start practicing written answers
+                    </p>
+                    <Button onClick={() => setShowAddQuestion(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Question
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                questions.map((q) => (
+                  <Card 
+                    key={q.id} 
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setSelectedQuestion(q)}
+                  >
+                    <CardContent className="py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="font-medium line-clamp-2">{q.question_text}</p>
+                          <div className="flex gap-2 mt-2">
+                            {q.subject && <Badge variant="outline">{q.subject}</Badge>}
+                            {q.topic && <Badge variant="secondary">{q.topic}</Badge>}
+                            <Badge>{q.max_marks} marks</Badge>
+                            {q.word_limit && <Badge variant="outline">{q.word_limit} words</Badge>}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          Practice
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
         ) : (
           // Answer Practice Interface
           <div className="grid lg:grid-cols-2 gap-6">
@@ -524,6 +703,49 @@ export default function WrittenPractice() {
                       <Badge variant="secondary">{selectedQuestion.topic}</Badge>
                     )}
                   </div>
+                  
+                  {/* Model Answer Toggle */}
+                  {selectedQuestion.model_answer && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setShowModelAnswer(!showModelAnswer)}
+                      >
+                        <Sparkles className="h-4 w-4 text-amber-500" />
+                        {showModelAnswer ? 'Hide Model Answer' : 'View Model Answer'}
+                      </Button>
+                      
+                      {showModelAnswer && (
+                        <div className="mt-4 p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                          <h4 className="font-medium text-sm text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" />
+                            Model Answer
+                          </h4>
+                          <div className="text-sm text-foreground whitespace-pre-wrap">
+                            {selectedQuestion.model_answer}
+                          </div>
+                          
+                          {selectedQuestion.key_points && selectedQuestion.key_points.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-amber-500/20">
+                              <h5 className="font-medium text-sm text-amber-600 dark:text-amber-400 mb-2">
+                                Key Points to Cover:
+                              </h5>
+                              <ul className="space-y-1">
+                                {selectedQuestion.key_points.map((point, idx) => (
+                                  <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                                    <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                                    {point}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
