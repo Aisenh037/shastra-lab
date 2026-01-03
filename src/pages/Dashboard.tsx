@@ -139,6 +139,7 @@ export default function Dashboard() {
           {statCards.map((stat, index) => (
             <Card 
               key={stat.label} 
+              variant="shastra"
               className="animate-slide-up"
               style={{ animationDelay: `${index * 100}ms` }}
             >
@@ -162,7 +163,7 @@ export default function Dashboard() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Difficulty Distribution */}
-          <Card className="animate-slide-up" style={{ animationDelay: '400ms' }}>
+          <Card variant="decorated" className="animate-slide-up" style={{ animationDelay: '400ms' }}>
             <CardHeader>
               <CardTitle className="text-lg">Difficulty Distribution</CardTitle>
               <CardDescription>Breakdown of question difficulty levels</CardDescription>
@@ -211,7 +212,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Top Topics */}
-          <Card className="animate-slide-up" style={{ animationDelay: '500ms' }}>
+          <Card variant="decorated" className="animate-slide-up" style={{ animationDelay: '500ms' }}>
             <CardHeader>
               <CardTitle className="text-lg">Top Topics</CardTitle>
               <CardDescription>Most frequently appearing topics</CardDescription>
@@ -247,7 +248,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <Card className="animate-slide-up" style={{ animationDelay: '600ms' }}>
+        <Card variant="ornate" className="animate-slide-up" style={{ animationDelay: '600ms' }}>
           <CardHeader>
             <CardTitle className="text-lg">Quick Actions</CardTitle>
             <CardDescription>Get started with common tasks</CardDescription>
