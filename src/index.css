@@ -166,6 +166,138 @@
   .animate-scale-in {
     animation: scaleIn 0.3s ease-out forwards;
   }
+
+  /* Shastra-inspired decorative patterns */
+  .shastra-border {
+    position: relative;
+  }
+
+  .shastra-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(28 90% 55% / 0.3) 0%,
+      hsl(230 70% 35% / 0.2) 25%,
+      transparent 50%,
+      hsl(230 70% 35% / 0.2) 75%,
+      hsl(28 90% 55% / 0.3) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .shastra-corners {
+    position: relative;
+  }
+
+  .shastra-corners::before,
+  .shastra-corners::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+    opacity: 0.4;
+  }
+
+  .shastra-corners::before {
+    top: 6px;
+    left: 6px;
+    border-top: 2px solid hsl(28 90% 55%);
+    border-left: 2px solid hsl(28 90% 55%);
+    border-top-left-radius: 4px;
+  }
+
+  .shastra-corners::after {
+    bottom: 6px;
+    right: 6px;
+    border-bottom: 2px solid hsl(28 90% 55%);
+    border-right: 2px solid hsl(28 90% 55%);
+    border-bottom-right-radius: 4px;
+  }
+
+  .shastra-pattern {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shastra-pattern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: repeating-linear-gradient(
+      90deg,
+      hsl(28 90% 55% / 0.6) 0px,
+      hsl(28 90% 55% / 0.6) 4px,
+      transparent 4px,
+      transparent 8px,
+      hsl(230 70% 35% / 0.4) 8px,
+      hsl(230 70% 35% / 0.4) 12px,
+      transparent 12px,
+      transparent 16px
+    );
+    pointer-events: none;
+  }
+
+  .shastra-mandala {
+    position: relative;
+  }
+
+  .shastra-mandala::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(
+      circle at center,
+      transparent 20%,
+      hsl(28 90% 55% / 0.05) 20%,
+      hsl(28 90% 55% / 0.05) 25%,
+      transparent 25%,
+      transparent 35%,
+      hsl(230 70% 35% / 0.03) 35%,
+      hsl(230 70% 35% / 0.03) 40%,
+      transparent 40%,
+      transparent 50%,
+      hsl(28 90% 55% / 0.02) 50%,
+      hsl(28 90% 55% / 0.02) 55%,
+      transparent 55%
+    );
+    pointer-events: none;
+  }
+
+  .shastra-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .shastra-divider::before,
+  .shastra-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(28 90% 55% / 0.4) 20%,
+      hsl(230 70% 35% / 0.3) 50%,
+      hsl(28 90% 55% / 0.4) 80%,
+      transparent
+    );
+  }
 }
 
 @keyframes fadeIn {
