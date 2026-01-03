@@ -18,7 +18,8 @@ import {
   Files,
   ClipboardList,
   Timer,
-  Trophy
+  Trophy,
+  Award
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ const navItems = [
   { path: '/written-practice', label: 'Written Practice', icon: PenLine },
   { path: '/mock-test', label: 'Timed Mock Test', icon: Timer },
   { path: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { path: '/achievements', label: 'Achievements', icon: Award },
   { path: '/submission-history', label: 'My Progress', icon: ClipboardList },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },

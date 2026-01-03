@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AchievementBadge } from '@/components/AchievementBadge';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -14,7 +17,8 @@ import {
   TrendingUp, 
   Target, 
   Crown,
-  User
+  User,
+  Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,10 +37,15 @@ interface UserRank {
   total_users: number;
 }
 
+interface UserAchievements {
+  [userId: string]: string[];
+}
+
 export default function Leaderboard() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [userRank, setUserRank] = useState<UserRank | null>(null);
+  const [userAchievements, setUserAchievements] = useState<UserAchievements>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +62,24 @@ export default function Leaderboard() {
       if (error) throw error;
       
       setLeaderboard(data || []);
+      
+      // Fetch achievements for all users in leaderboard
+      if (data && data.length > 0) {
+        const userIds = data.map((entry: LeaderboardEntry) => entry.user_id);
+        const { data: achievementsData } = await supabase
+          .from('achievements')
+          .select('user_id, achievement_key')
+          .in('user_id', userIds);
+        
+        if (achievementsData) {
+          const grouped: UserAchievements = {};
+          achievementsData.forEach((a: { user_id: string; achievement_key: string }) => {
+            if (!grouped[a.user_id]) grouped[a.user_id] = [];
+            grouped[a.user_id].push(a.achievement_key);
+          });
+          setUserAchievements(grouped);
+        }
+      }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
     } finally {
@@ -235,12 +262,32 @@ export default function Leaderboard() {
                               </Badge>
                             )}
                           </p>
-                          <p className={cn(
-                            "text-sm",
-                            entry.rank <= 3 ? "opacity-80" : "text-muted-foreground"
-                          )}>
-                            {entry.tests_completed} test{entry.tests_completed !== 1 ? 's' : ''} completed
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className={cn(
+                              "text-sm",
+                              entry.rank <= 3 ? "opacity-80" : "text-muted-foreground"
+                            )}>
+                              {entry.tests_completed} test{entry.tests_completed !== 1 ? 's' : ''} completed
+                            </p>
+                            {/* Achievement badges */}
+                            {userAchievements[entry.user_id]?.length > 0 && (
+                              <div className="flex items-center gap-1 ml-2">
+                                {userAchievements[entry.user_id].slice(0, 3).map((key) => (
+                                  <AchievementBadge 
+                                    key={key} 
+                                    achievementKey={key} 
+                                    size="sm" 
+                                    animate={false}
+                                  />
+                                ))}
+                                {userAchievements[entry.user_id].length > 3 && (
+                                  <span className="text-xs text-muted-foreground ml-1">
+                                    +{userAchievements[entry.user_id].length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -317,6 +364,28 @@ export default function Leaderboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* View Achievements CTA */}
+        <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-primary/10">
+                  <Star className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground">Unlock Achievements</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Complete tests and climb the leaderboard to earn badges
+                  </p>
+                </div>
+              </div>
+              <Button asChild>
+                <Link to="/achievements">View Achievements</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );
