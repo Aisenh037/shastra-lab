@@ -3,10 +3,12 @@ import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useStreak } from '@/hooks/useStreak';
 import { FileText, BookOpen, HelpCircle, TrendingUp, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { StreakDisplay } from '@/components/StreakDisplay';
 
 interface Stats {
   totalPapers: number;
@@ -28,6 +30,7 @@ interface TopicData {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { streak } = useStreak();
   const [stats, setStats] = useState<Stats>({
     totalPapers: 0,
     totalQuestions: 0,
@@ -115,12 +118,20 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-8">
-        {/* Header */}
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back! Here's an overview of your exam analysis.
-          </p>
+        {/* Header with Streak */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">
+              Welcome back! Here's an overview of your exam analysis.
+            </p>
+          </div>
+          <StreakDisplay
+            currentStreak={streak.currentStreak}
+            longestStreak={streak.longestStreak}
+            practicedToday={streak.practicedToday}
+            variant="compact"
+          />
         </div>
 
         {/* Stats Grid */}

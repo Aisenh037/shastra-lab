@@ -10,6 +10,9 @@ import {
   Target,
   Flame,
   Sparkles,
+  Calendar,
+  CalendarCheck,
+  CalendarDays,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -26,6 +29,7 @@ export interface AchievementDefinition {
   bgColor: string;
   borderColor: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  category?: 'tests' | 'scores' | 'ranking' | 'streaks';
 }
 
 export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
@@ -38,6 +42,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-emerald-500/10',
     borderColor: 'border-emerald-500/30',
     rarity: 'common',
+    category: 'tests',
   },
   test_veteran: {
     key: 'test_veteran',
@@ -48,6 +53,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500/30',
     rarity: 'common',
+    category: 'tests',
   },
   test_master: {
     key: 'test_master',
@@ -58,6 +64,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-purple-500/10',
     borderColor: 'border-purple-500/30',
     rarity: 'rare',
+    category: 'tests',
   },
   high_scorer: {
     key: 'high_scorer',
@@ -68,6 +75,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-yellow-500/10',
     borderColor: 'border-yellow-500/30',
     rarity: 'common',
+    category: 'scores',
   },
   consistent_excellence: {
     key: 'consistent_excellence',
@@ -78,6 +86,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-orange-500/10',
     borderColor: 'border-orange-500/30',
     rarity: 'rare',
+    category: 'scores',
   },
   perfectionist: {
     key: 'perfectionist',
@@ -88,6 +97,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-pink-500/10',
     borderColor: 'border-pink-500/30',
     rarity: 'epic',
+    category: 'scores',
   },
   top_10: {
     key: 'top_10',
@@ -98,6 +108,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-cyan-500/10',
     borderColor: 'border-cyan-500/30',
     rarity: 'rare',
+    category: 'ranking',
   },
   top_3: {
     key: 'top_3',
@@ -108,6 +119,7 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/30',
     rarity: 'epic',
+    category: 'ranking',
   },
   champion: {
     key: 'champion',
@@ -118,6 +130,40 @@ export const ACHIEVEMENTS: Record<string, AchievementDefinition> = {
     bgColor: 'bg-gradient-to-br from-yellow-500/20 to-amber-500/20',
     borderColor: 'border-yellow-500/50',
     rarity: 'legendary',
+    category: 'ranking',
+  },
+  week_warrior: {
+    key: 'week_warrior',
+    name: 'Week Warrior',
+    description: 'Maintain a 7-day practice streak',
+    icon: Calendar,
+    color: 'text-teal-500',
+    bgColor: 'bg-teal-500/10',
+    borderColor: 'border-teal-500/30',
+    rarity: 'common',
+    category: 'streaks',
+  },
+  fortnight_fighter: {
+    key: 'fortnight_fighter',
+    name: 'Fortnight Fighter',
+    description: 'Maintain a 14-day practice streak',
+    icon: CalendarCheck,
+    color: 'text-indigo-500',
+    bgColor: 'bg-indigo-500/10',
+    borderColor: 'border-indigo-500/30',
+    rarity: 'rare',
+    category: 'streaks',
+  },
+  monthly_master: {
+    key: 'monthly_master',
+    name: 'Monthly Master',
+    description: 'Maintain a 30-day practice streak',
+    icon: CalendarDays,
+    color: 'text-rose-500',
+    bgColor: 'bg-rose-500/10',
+    borderColor: 'border-rose-500/30',
+    rarity: 'epic',
+    category: 'streaks',
   },
 };
 

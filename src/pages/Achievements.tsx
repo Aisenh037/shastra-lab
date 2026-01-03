@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAchievements } from '@/hooks/useAchievements';
+import { useStreak } from '@/hooks/useStreak';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,13 +10,22 @@ import {
   AchievementProgress, 
   ACHIEVEMENTS 
 } from '@/components/AchievementBadge';
+import { StreakDisplay } from '@/components/StreakDisplay';
 import { motion } from 'framer-motion';
-import { Trophy, Star, Lock } from 'lucide-react';
+import { Trophy, Star, Lock, Flame, Target, Medal, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const CATEGORY_INFO = {
+  tests: { label: 'Tests', icon: Target, color: 'text-blue-500' },
+  scores: { label: 'Scores', icon: Star, color: 'text-yellow-500' },
+  ranking: { label: 'Ranking', icon: Medal, color: 'text-amber-500' },
+  streaks: { label: 'Streaks', icon: Flame, color: 'text-orange-500' },
+};
 
 export default function Achievements() {
   const { user } = useAuth();
   const { achievements, unlockedKeys, isLoading, checkAndUpdate } = useAchievements();
+  const { streak, isLoading: streakLoading } = useStreak();
 
   // Check for new achievements when page loads
   useEffect(() => {
@@ -27,6 +37,14 @@ export default function Achievements() {
   const allAchievements = Object.values(ACHIEVEMENTS);
   const unlockedCount = unlockedKeys.length;
   const totalCount = allAchievements.length;
+
+  // Group achievements by category
+  const categorizedAchievements = allAchievements.reduce((acc, achievement) => {
+    const category = achievement.category || 'other';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(achievement);
+    return acc;
+  }, {} as Record<string, typeof allAchievements>);
 
   const getRarityLabel = (rarity: string) => {
     switch (rarity) {
@@ -61,6 +79,18 @@ export default function Achievements() {
             Track your milestones and unlock badges
           </p>
         </div>
+
+        {/* Streak Card */}
+        {streakLoading ? (
+          <Skeleton className="h-40" />
+        ) : (
+          <StreakDisplay
+            currentStreak={streak.currentStreak}
+            longestStreak={streak.longestStreak}
+            practicedToday={streak.practicedToday}
+            variant="card"
+          />
+        )}
 
         {/* Progress Card */}
         <Card className="bg-gradient-to-r from-primary/5 to-accent/5">
