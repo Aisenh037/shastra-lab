@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { format } from 'date-fns';
-import { TrendingUp, TrendingDown, Minus, History, Target, Award, BookOpen, Eye } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, History, Target, Award, BookOpen, Eye, BarChart3 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import SubjectAnalytics from '@/components/SubjectAnalytics';
 
 interface Submission {
   id: string;
@@ -34,6 +36,7 @@ interface Submission {
 export default function SubmissionHistory() {
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('month');
+  const [activeTab, setActiveTab] = useState<'overview' | 'subjects'>('overview');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
 
   const { data: submissions, isLoading } = useQuery({
@@ -126,53 +129,67 @@ export default function SubmissionHistory() {
           </Select>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Submissions</CardTitle>
-              <History className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalSubmissions}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Average Score</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.averageScore}</div>
-              <p className="text-xs text-muted-foreground">{stats.averagePercentage}% average</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Highest Score</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.highestScore}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Trend</CardTitle>
-              {trend === 'up' ? (
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              ) : trend === 'down' ? (
-                <TrendingDown className="h-4 w-4 text-red-500" />
-              ) : (
-                <Minus className="h-4 w-4 text-muted-foreground" />
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold capitalize">{trend === 'up' ? 'Improving' : trend === 'down' ? 'Declining' : 'Stable'}</div>
-              <p className="text-xs text-muted-foreground">Based on recent performance</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Tabs for Overview vs Subject Analytics */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'subjects')}>
+          <TabsList>
+            <TabsTrigger value="overview">
+              <History className="h-4 w-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="subjects">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Subject Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Submissions</CardTitle>
+                  <History className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalSubmissions}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Average Score</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.averageScore}</div>
+                  <p className="text-xs text-muted-foreground">{stats.averagePercentage}% average</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Highest Score</CardTitle>
+                  <Award className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.highestScore}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Trend</CardTitle>
+                  {trend === 'up' ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : trend === 'down' ? (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold capitalize">{trend === 'up' ? 'Improving' : trend === 'down' ? 'Declining' : 'Stable'}</div>
+                  <p className="text-xs text-muted-foreground">Based on recent performance</p>
+                </CardContent>
+              </Card>
+            </div>
 
         {/* Progress Chart */}
         {chartData.length > 0 && (
@@ -323,6 +340,12 @@ export default function SubmissionHistory() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="subjects" className="mt-6">
+            <SubjectAnalytics submissions={submissions || []} />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
