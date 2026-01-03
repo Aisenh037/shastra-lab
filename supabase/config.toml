@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.send-progress-report]
 verify_jwt = true
+
+[functions.tts-feedback]
+verify_jwt = true
+
+[functions.generate-video-feedback]
+verify_jwt = true

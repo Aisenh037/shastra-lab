@@ -12,6 +12,9 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { FeedbackVideo } from '@/components/FeedbackVideo';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useTTS } from '@/hooks/useTTS';
 import { 
   PenLine, 
   Upload, 
@@ -25,7 +28,12 @@ import {
   BookOpen,
   Sparkles,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Volume2,
+  VolumeX,
+  Video,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -73,6 +81,9 @@ interface Evaluation {
 export default function WrittenPractice() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const notifications = useNotifications();
+  const tts = useTTS();
+  
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [pyqTemplates, setPyqTemplates] = useState<MockTest[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<PracticeQuestion | null>(null);
@@ -89,6 +100,11 @@ export default function WrittenPractice() {
   const [activeTab, setActiveTab] = useState<'my-questions' | 'pyq-templates'>('pyq-templates');
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [showModelAnswer, setShowModelAnswer] = useState(false);
+  const [showVideoFeedback, setShowVideoFeedback] = useState(false);
+  const [videoSlides, setVideoSlides] = useState<any[]>([]);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [isGeneratingTTS, setIsGeneratingTTS] = useState(false);
+  const [ttsSummary, setTtsSummary] = useState<string | null>(null);
   const [newQuestion, setNewQuestion] = useState({
     question_text: '',
     question_type: 'essay',
@@ -389,6 +405,11 @@ export default function WrittenPractice() {
         evaluated_at: new Date().toISOString(),
       });
 
+      // Send push notification
+      if (notifications.permission === 'granted') {
+        notifications.notifyEvaluationComplete(evalData.score, selectedQuestion.max_marks);
+      }
+
       toast({ title: 'Evaluation complete!', description: 'Check your results below.' });
     } catch (error) {
       console.error('Evaluation error:', error);
@@ -402,6 +423,77 @@ export default function WrittenPractice() {
     }
   };
 
+  const handleGenerateTTS = async () => {
+    if (!evaluation) return;
+    
+    setIsGeneratingTTS(true);
+    try {
+      const feedbackText = `
+        Score: ${evaluation.score} out of ${selectedQuestion?.max_marks}, which is ${evaluation.percentage}%.
+        Overall feedback: ${evaluation.overallFeedback}.
+        Strengths: ${evaluation.strengths.join('. ')}.
+        Areas to improve: ${evaluation.improvements.join('. ')}.
+      `;
+
+      const { data, error } = await supabase.functions.invoke('tts-feedback', {
+        body: { text: feedbackText },
+      });
+
+      if (error) throw error;
+
+      if (data?.summary) {
+        setTtsSummary(data.summary);
+        tts.speak(data.summary);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      toast({ 
+        title: 'Could not generate audio', 
+        description: 'Using browser speech instead.',
+        variant: 'destructive' 
+      });
+      // Fallback to direct speech
+      const fallbackText = `You scored ${evaluation.score} out of ${selectedQuestion?.max_marks}. ${evaluation.overallFeedback}`;
+      tts.speak(fallbackText);
+    } finally {
+      setIsGeneratingTTS(false);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    if (!evaluation || !selectedQuestion) return;
+    
+    setIsGeneratingVideo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-video-feedback', {
+        body: {
+          score: evaluation.score,
+          percentage: evaluation.percentage,
+          strengths: evaluation.strengths,
+          improvements: evaluation.improvements,
+          overallFeedback: evaluation.overallFeedback,
+          questionText: selectedQuestion.question_text,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.slides) {
+        setVideoSlides(data.slides);
+        setShowVideoFeedback(true);
+      }
+    } catch (error) {
+      console.error('Video generation error:', error);
+      toast({ 
+        title: 'Could not generate video', 
+        description: 'Please try again later.',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
+
   const resetPractice = () => {
     setSelectedQuestion(null);
     setAnswerText('');
@@ -409,6 +501,10 @@ export default function WrittenPractice() {
     setAnswerImagePreviews([]);
     setExtractedText(null);
     setEvaluation(null);
+    setShowVideoFeedback(false);
+    setVideoSlides([]);
+    setTtsSummary(null);
+    tts.stop();
   };
 
   const getRatingColor = (rating: string) => {
@@ -925,9 +1021,68 @@ export default function WrittenPractice() {
                   {/* Score Card */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Your Score
+                      <CardTitle className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-5 w-5" />
+                          Your Score
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {/* Notification Toggle */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (notifications.permission !== 'granted') {
+                                await notifications.requestPermission();
+                              }
+                            }}
+                            title={notifications.permission === 'granted' ? 'Notifications enabled' : 'Enable notifications'}
+                          >
+                            {notifications.permission === 'granted' ? (
+                              <Bell className="h-4 w-4 text-primary" />
+                            ) : (
+                              <BellOff className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                          
+                          {/* TTS Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (tts.isSpeaking) {
+                                tts.stop();
+                              } else {
+                                handleGenerateTTS();
+                              }
+                            }}
+                            disabled={isGeneratingTTS}
+                            title={tts.isSpeaking ? 'Stop reading' : 'Read feedback aloud'}
+                          >
+                            {isGeneratingTTS ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : tts.isSpeaking ? (
+                              <VolumeX className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Volume2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                          
+                          {/* Video Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleGenerateVideo}
+                            disabled={isGeneratingVideo}
+                            title="Generate video summary"
+                          >
+                            {isGeneratingVideo ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Video className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -941,8 +1096,51 @@ export default function WrittenPractice() {
                       </div>
                       <Progress value={evaluation.percentage} className="h-3" />
                       <p className="text-muted-foreground mt-4">{evaluation.overallFeedback}</p>
+                      
+                      {/* TTS Status */}
+                      {tts.isSpeaking && (
+                        <div className="mt-4 p-3 rounded-lg bg-primary/10 flex items-center gap-3">
+                          <Volume2 className="h-5 w-5 text-primary animate-pulse" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-primary">Reading feedback...</p>
+                            <p className="text-xs text-muted-foreground">Click the speaker icon to stop</p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => tts.toggle()}>
+                            {tts.isPaused ? 'Resume' : 'Pause'}
+                          </Button>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
+                  
+                  {/* Video Feedback */}
+                  {showVideoFeedback && videoSlides.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Video className="h-4 w-4 text-purple-500" />
+                            Video Summary
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowVideoFeedback(false)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <FeedbackVideo 
+                          slides={videoSlides} 
+                          onComplete={() => {
+                            toast({ title: 'Video complete!', description: 'Great job reviewing your feedback.' });
+                          }}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Strengths & Improvements */}
                   <div className="grid md:grid-cols-2 gap-4">
