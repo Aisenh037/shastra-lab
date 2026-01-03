@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Brain, Target, ArrowRight, CheckCircle, Sparkles, Users, Globe, BookOpen } from 'lucide-react';
 import ShastraLabLogo from '@/components/ShastraLabLogo';
+import { ThemeToggleSimple } from '@/components/ThemeToggle';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -31,7 +32,8 @@ export default function Index() {
           <Link to="/">
             <ShastraLabLogo size="md" />
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <ThemeToggleSimple />
             <Link to="/auth">
               <Button variant="ghost">Sign In</Button>
             </Link>
