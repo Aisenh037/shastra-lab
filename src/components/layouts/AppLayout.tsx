@@ -17,7 +17,8 @@ import {
   PenLine,
   Files,
   ClipboardList,
-  Timer
+  Timer,
+  Trophy
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ const navItems = [
   { path: '/year-over-year', label: 'Year Trends', icon: Calendar },
   { path: '/written-practice', label: 'Written Practice', icon: PenLine },
   { path: '/mock-test', label: 'Timed Mock Test', icon: Timer },
+  { path: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { path: '/submission-history', label: 'My Progress', icon: ClipboardList },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },

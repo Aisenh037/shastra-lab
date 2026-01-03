@@ -14,6 +14,7 @@ import PaperComparison from "./pages/PaperComparison";
 import YearOverYear from "./pages/YearOverYear";
 import WrittenPractice from "./pages/WrittenPractice";
 import MockTest from "./pages/MockTest";
+import Leaderboard from "./pages/Leaderboard";
 import Questions from "./pages/Questions";
 import Reports from "./pages/Reports";
 import SubmissionHistory from "./pages/SubmissionHistory";
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/year-over-year" element={<YearOverYear />} />
             <Route path="/written-practice" element={<WrittenPractice />} />
             <Route path="/mock-test" element={<MockTest />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/questions" element={<Questions />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/submission-history" element={<SubmissionHistory />} />
