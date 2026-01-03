@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -20,8 +20,8 @@ import {
   Trophy,
   Award
 } from 'lucide-react';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import ShastraLabLogo from '@/components/ShastraLabLogo';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -92,13 +92,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <div className="p-2 bg-sidebar-primary rounded-lg">
-                <BookOpen className="h-6 w-6 text-sidebar-primary-foreground" />
-              </div>
-              <span className="text-lg font-display font-bold text-sidebar-foreground">
-                ShastraLab
-              </span>
+            <Link to="/dashboard">
+              <ShastraLabLogo size="md" />
             </Link>
           </div>
 

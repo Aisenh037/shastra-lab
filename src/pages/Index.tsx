@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Brain, Target, ArrowRight, CheckCircle, Sparkles, Users, Globe } from 'lucide-react';
+import { Brain, Target, ArrowRight, CheckCircle, Sparkles, Users, Globe, BookOpen } from 'lucide-react';
+import ShastraLabLogo from '@/components/ShastraLabLogo';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -27,11 +28,8 @@ export default function Index() {
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="p-2 bg-primary rounded-lg">
-              <BookOpen className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-display font-bold">ShastraLab</span>
+          <Link to="/">
+            <ShastraLabLogo size="md" />
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/auth">
@@ -222,10 +220,7 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <span className="font-display font-semibold">ShastraLab</span>
-          </div>
+          <ShastraLabLogo size="sm" />
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} ShastraLab. Engineering exam-ready answers.
           </p>
