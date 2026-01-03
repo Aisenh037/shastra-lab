@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.ocr-handwriting]
 verify_jwt = true
+
+[functions.send-progress-report]
+verify_jwt = true
