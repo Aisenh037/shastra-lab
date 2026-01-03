@@ -1044,6 +1044,91 @@ export default function WrittenPractice() {
                     </Card>
                   )}
 
+                  {/* Side-by-Side Comparison */}
+                  {selectedQuestion.model_answer && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-amber-500" />
+                          Side-by-Side Answer Comparison
+                        </CardTitle>
+                        <CardDescription>
+                          Compare your answer with the model answer
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {/* Your Answer */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                              <div className="w-3 h-3 rounded-full bg-primary" />
+                              <span className="font-medium text-sm">Your Answer</span>
+                              <Badge variant="outline" className="ml-auto">
+                                {answerText.split(/\s+/).filter(Boolean).length} words
+                              </Badge>
+                            </div>
+                            <ScrollArea className="h-[300px]">
+                              <div className="text-sm text-foreground whitespace-pre-wrap pr-4">
+                                {answerText || 'No text answer provided'}
+                              </div>
+                            </ScrollArea>
+                          </div>
+
+                          {/* Model Answer */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 pb-2 border-b border-amber-500/30">
+                              <div className="w-3 h-3 rounded-full bg-amber-500" />
+                              <span className="font-medium text-sm text-amber-600 dark:text-amber-400">Model Answer</span>
+                              <Badge variant="outline" className="ml-auto border-amber-500/30 text-amber-600 dark:text-amber-400">
+                                {selectedQuestion.model_answer.split(/\s+/).filter(Boolean).length} words
+                              </Badge>
+                            </div>
+                            <ScrollArea className="h-[300px]">
+                              <div className="text-sm text-foreground whitespace-pre-wrap pr-4 bg-amber-500/5 p-3 rounded-lg">
+                                {selectedQuestion.model_answer}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        </div>
+
+                        {/* Key Points Checklist */}
+                        {selectedQuestion.key_points && selectedQuestion.key_points.length > 0 && (
+                          <div className="mt-4 pt-4 border-t">
+                            <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                              <Target className="h-4 w-4 text-primary" />
+                              Key Points Coverage
+                            </h4>
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              {selectedQuestion.key_points.map((point, idx) => {
+                                const isIncluded = answerText.toLowerCase().includes(
+                                  point.toLowerCase().split(' ').slice(0, 3).join(' ')
+                                );
+                                return (
+                                  <div 
+                                    key={idx} 
+                                    className={cn(
+                                      "flex items-start gap-2 p-2 rounded-lg text-sm",
+                                      isIncluded 
+                                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" 
+                                        : "bg-muted text-muted-foreground"
+                                    )}
+                                  >
+                                    {isIncluded ? (
+                                      <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                    )}
+                                    <span>{point}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <Button variant="outline" onClick={resetPractice} className="w-full">
                     Practice Another Question
                   </Button>
