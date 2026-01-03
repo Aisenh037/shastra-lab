@@ -64,11 +64,12 @@ export default function WrittenPractice() {
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<PracticeQuestion | null>(null);
   const [answerText, setAnswerText] = useState('');
-  const [answerImage, setAnswerImage] = useState<File | null>(null);
-  const [answerImagePreview, setAnswerImagePreview] = useState<string | null>(null);
+  const [answerImages, setAnswerImages] = useState<File[]>([]);
+  const [answerImagePreviews, setAnswerImagePreviews] = useState<string[]>([]);
   const [submissionType, setSubmissionType] = useState<'typed' | 'handwritten'>('typed');
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isExtractingText, setIsExtractingText] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState({ current: 0, total: 0 });
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
@@ -164,45 +165,78 @@ export default function WrittenPractice() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAnswerImage(file);
-      setExtractedText(null);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    // Add new files to existing ones
+    const newFiles = [...answerImages, ...files];
+    setAnswerImages(newFiles);
+    setExtractedText(null);
+    
+    // Generate previews for new files
+    const newPreviews: string[] = [];
+    for (const file of files) {
+      const preview = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      newPreviews.push(preview);
+    }
+    
+    const allPreviews = [...answerImagePreviews, ...newPreviews];
+    setAnswerImagePreviews(allPreviews);
+    
+    // Extract text from all pages
+    setIsExtractingText(true);
+    setOcrProgress({ current: 0, total: allPreviews.length });
+    
+    try {
+      let combinedText = '';
       
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const imageDataUrl = reader.result as string;
-        setAnswerImagePreview(imageDataUrl);
+      for (let i = 0; i < allPreviews.length; i++) {
+        setOcrProgress({ current: i + 1, total: allPreviews.length });
         
-        // Automatically extract text using OCR
-        setIsExtractingText(true);
-        try {
-          const { data, error } = await supabase.functions.invoke('ocr-handwriting', {
-            body: { imageData: imageDataUrl },
-          });
-          
-          if (error) throw error;
-          
-          if (data?.text) {
-            setExtractedText(data.text);
-            setAnswerText(data.text);
-            toast({ 
-              title: 'Text extracted!', 
-              description: 'Handwritten text has been automatically extracted.' 
-            });
-          }
-        } catch (error) {
-          console.error('OCR error:', error);
-          toast({ 
-            title: 'OCR failed', 
-            description: 'Could not extract text. You can type it manually.',
-            variant: 'destructive' 
-          });
-        } finally {
-          setIsExtractingText(false);
+        const { data, error } = await supabase.functions.invoke('ocr-handwriting', {
+          body: { imageData: allPreviews[i] },
+        });
+        
+        if (error) throw error;
+        
+        if (data?.text) {
+          combinedText += `--- Page ${i + 1} ---\n${data.text}\n\n`;
         }
-      };
-      reader.readAsDataURL(file);
+      }
+      
+      if (combinedText) {
+        setExtractedText(combinedText.trim());
+        setAnswerText(combinedText.trim());
+        toast({ 
+          title: 'Text extracted!', 
+          description: `Extracted text from ${allPreviews.length} page(s).` 
+        });
+      }
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast({ 
+        title: 'OCR failed', 
+        description: 'Could not extract text. You can type it manually.',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsExtractingText(false);
+      setOcrProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const newImages = answerImages.filter((_, i) => i !== index);
+    const newPreviews = answerImagePreviews.filter((_, i) => i !== index);
+    setAnswerImages(newImages);
+    setAnswerImagePreviews(newPreviews);
+    if (newImages.length === 0) {
+      setExtractedText(null);
+      setAnswerText('');
     }
   };
 
@@ -212,7 +246,7 @@ export default function WrittenPractice() {
       toast({ title: 'Error', description: 'Please write your answer first.', variant: 'destructive' });
       return;
     }
-    if (submissionType === 'handwritten' && !answerImage) {
+    if (submissionType === 'handwritten' && answerImages.length === 0) {
       toast({ title: 'Error', description: 'Please upload your handwritten answer.', variant: 'destructive' });
       return;
     }
@@ -221,23 +255,28 @@ export default function WrittenPractice() {
     setEvaluation(null);
 
     try {
-      let imageUrl = null;
+      const imageUrls: string[] = [];
 
-      // Upload image if handwritten
-      if (submissionType === 'handwritten' && answerImage) {
-        const fileName = `${user.id}/${Date.now()}_${answerImage.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('answer-uploads')
-          .upload(fileName, answerImage);
+      // Upload images if handwritten
+      if (submissionType === 'handwritten' && answerImages.length > 0) {
+        for (let i = 0; i < answerImages.length; i++) {
+          const file = answerImages[i];
+          const fileName = `${user.id}/${Date.now()}_page${i + 1}_${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('answer-uploads')
+            .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from('answer-uploads')
-          .getPublicUrl(fileName);
-        
-        imageUrl = urlData.publicUrl;
+          const { data: urlData } = supabase.storage
+            .from('answer-uploads')
+            .getPublicUrl(fileName);
+          
+          imageUrls.push(urlData.publicUrl);
+        }
       }
+      
+      const imageUrl = imageUrls.length > 0 ? imageUrls.join(',') : null;
 
       // For handwritten, we'd need OCR - for now we'll prompt user to also type
       const answerForEvaluation = submissionType === 'typed' 
@@ -298,8 +337,8 @@ export default function WrittenPractice() {
   const resetPractice = () => {
     setSelectedQuestion(null);
     setAnswerText('');
-    setAnswerImage(null);
-    setAnswerImagePreview(null);
+    setAnswerImages([]);
+    setAnswerImagePreviews([]);
     setExtractedText(null);
     setEvaluation(null);
   };
@@ -523,49 +562,81 @@ export default function WrittenPractice() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                      {/* Image Upload Area */}
+                      <div className="border-2 border-dashed rounded-lg p-6 text-center">
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={handleImageUpload}
                           className="hidden"
                           id="answer-image"
                           disabled={isEvaluating || isExtractingText}
                         />
-                        <label htmlFor="answer-image" className="cursor-pointer">
-                          {answerImagePreview ? (
-                            <img 
-                              src={answerImagePreview} 
-                              alt="Answer preview" 
-                              className="max-h-[300px] mx-auto rounded-lg"
-                            />
-                          ) : (
-                            <>
-                              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                              <p className="text-muted-foreground">
-                                Click to upload your handwritten answer
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Supports JPG, PNG, HEIC
-                              </p>
-                            </>
-                          )}
+                        <label htmlFor="answer-image" className="cursor-pointer block">
+                          <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                          <p className="text-muted-foreground">
+                            {answerImagePreviews.length > 0 
+                              ? 'Click to add more pages' 
+                              : 'Click to upload your handwritten answer'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Supports multiple pages • JPG, PNG, HEIC
+                          </p>
                         </label>
                       </div>
+                      
+                      {/* Image Previews Grid */}
+                      {answerImagePreviews.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">Uploaded Pages ({answerImagePreviews.length})</Label>
+                          <div className="grid grid-cols-3 gap-3">
+                            {answerImagePreviews.map((preview, index) => (
+                              <div key={index} className="relative group">
+                                <img 
+                                  src={preview} 
+                                  alt={`Page ${index + 1}`} 
+                                  className="w-full h-24 object-cover rounded-lg border"
+                                />
+                                <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => removeImage(index)}
+                                    disabled={isExtractingText}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <Badge 
+                                  variant="secondary" 
+                                  className="absolute bottom-1 left-1 text-xs"
+                                >
+                                  Page {index + 1}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       
                       {/* OCR Status */}
                       {isExtractingText && (
                         <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
                           <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          <span className="text-sm text-primary">Extracting text from handwriting...</span>
+                          <span className="text-sm text-primary">
+                            Extracting text... Page {ocrProgress.current} of {ocrProgress.total}
+                          </span>
                         </div>
                       )}
                       
                       {extractedText && !isExtractingText && (
                         <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-emerald-500" />
-                            <span className="text-sm font-medium text-emerald-500">Text extracted automatically</span>
+                            <span className="text-sm font-medium text-emerald-500">
+                              Text extracted from {answerImagePreviews.length} page(s)
+                            </span>
                           </div>
                         </div>
                       )}
