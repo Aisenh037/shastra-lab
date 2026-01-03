@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useStreak } from '@/hooks/useStreak';
+import { useAchievements } from '@/hooks/useAchievements';
 import { supabase } from '@/integrations/supabase/client';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -83,6 +85,8 @@ export default function WrittenPractice() {
   const { toast } = useToast();
   const notifications = useNotifications();
   const tts = useTTS();
+  const { recordPractice } = useStreak();
+  const { checkAndUpdate: checkAchievements } = useAchievements();
   
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [pyqTemplates, setPyqTemplates] = useState<MockTest[]>([]);
@@ -404,6 +408,20 @@ export default function WrittenPractice() {
         model_comparison: evalData.modelComparison,
         evaluated_at: new Date().toISOString(),
       });
+
+      // Record practice for streak tracking
+      const streakResult = await recordPractice();
+      if (streakResult?.streakExtended) {
+        toast({ 
+          title: `${streakResult.currentStreak} day streak!`, 
+          description: streakResult.currentStreak > 1 
+            ? "Keep it up! Practice daily to maintain your streak." 
+            : "Great start! Practice again tomorrow to build your streak.",
+        });
+      }
+
+      // Check for new achievements
+      await checkAchievements();
 
       // Send push notification
       if (notifications.permission === 'granted') {

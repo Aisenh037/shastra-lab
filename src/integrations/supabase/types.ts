@@ -103,6 +103,36 @@ export type Database = {
           },
         ]
       }
+      daily_practice_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_practice_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_practice_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_practice_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_report_preferences: {
         Row: {
           created_at: string
@@ -450,12 +480,29 @@ export type Database = {
           total_users: number
         }[]
       }
+      get_user_streak: {
+        Args: { p_user_id: string }
+        Returns: {
+          current_streak: number
+          last_practice_date: string
+          longest_streak: number
+          practiced_today: boolean
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      update_practice_streak: {
+        Args: { p_user_id: string }
+        Returns: {
+          current_streak: number
+          longest_streak: number
+          streak_extended: boolean
+        }[]
       }
     }
     Enums: {
