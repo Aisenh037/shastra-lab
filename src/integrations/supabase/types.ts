@@ -498,6 +498,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      recover_streak: {
+        Args: { p_days_to_recover?: number; p_user_id: string }
+        Returns: {
+          freezes_remaining: number
+          freezes_used: number
+          message: string
+          new_streak: number
+          success: boolean
+        }[]
+      }
       update_practice_streak: {
         Args: { p_user_id: string }
         Returns: {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Snowflake, AlertTriangle, Shield, Plus } from 'lucide-react';
+import { Snowflake, AlertTriangle, Shield, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,20 +9,33 @@ import { toast } from 'sonner';
 interface StreakFreezeProps {
   freezeCount: number;
   streakAtRisk: boolean;
+  streakLost: boolean;
+  previousStreak: number;
   currentStreak: number;
   onUseFreeze: () => Promise<{ success: boolean; freezesRemaining: number; message: string } | null>;
   onAddFreezes: (count: number) => Promise<number | null>;
+  onRecoverStreak: (daysToRecover: number) => Promise<{
+    success: boolean;
+    newStreak: number;
+    freezesUsed: number;
+    freezesRemaining: number;
+    message: string;
+  } | null>;
 }
 
 export function StreakFreeze({
   freezeCount,
   streakAtRisk,
+  streakLost,
+  previousStreak,
   currentStreak,
   onUseFreeze,
   onAddFreezes,
+  onRecoverStreak,
 }: StreakFreezeProps) {
   const [isUsing, setIsUsing] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const handleUseFreeze = async () => {
     if (freezeCount <= 0) {
@@ -47,6 +60,31 @@ export function StreakFreeze({
     }
   };
 
+  const handleRecoverStreak = async () => {
+    if (freezeCount < 2) {
+      toast.error('Not enough freezes', {
+        description: 'You need at least 2 freezes to recover your streak.',
+      });
+      return;
+    }
+
+    setIsRecovering(true);
+    try {
+      const result = await onRecoverStreak(1);
+      if (result?.success) {
+        toast.success('Streak recovered!', {
+          description: result.message,
+        });
+      } else {
+        toast.error(result?.message || 'Failed to recover streak');
+      }
+    } catch (error) {
+      toast.error('Failed to recover streak');
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
   const handleEarnFreeze = async () => {
     setIsAdding(true);
     try {
@@ -62,6 +100,9 @@ export function StreakFreeze({
       setIsAdding(false);
     }
   };
+
+  const freezesNeededForRecovery = 2;
+  const canRecover = freezeCount >= freezesNeededForRecovery && streakLost && previousStreak > 0;
 
   return (
     <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
@@ -101,7 +142,7 @@ export function StreakFreeze({
         </div>
 
         <AnimatePresence>
-          {streakAtRisk && currentStreak > 0 && (
+          {streakAtRisk && currentStreak > 0 && !streakLost && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -128,6 +169,45 @@ export function StreakFreeze({
                       <Shield className="h-4 w-4 mr-2" />
                       {isUsing ? 'Applying...' : 'Use Freeze'}
                     </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {streakLost && previousStreak > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3"
+            >
+              <div className="flex items-start gap-3">
+                <RotateCcw className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                    Recover your {previousStreak} day streak!
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Your streak was lost, but you can recover it using 2 freezes per missed day.
+                  </p>
+                  {canRecover ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRecoverStreak}
+                      disabled={isRecovering}
+                      className="mt-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      {isRecovering ? 'Recovering...' : `Recover (${freezesNeededForRecovery} freezes)`}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Need {freezesNeededForRecovery} freezes to recover (you have {freezeCount})
+                    </p>
                   )}
                 </div>
               </div>

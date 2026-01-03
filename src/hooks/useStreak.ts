@@ -159,6 +159,43 @@ export function useStreak() {
     }
   }, [user]);
 
+  const recoverStreak = useCallback(async (daysToRecover: number = 1) => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('recover_streak' as any, {
+        p_user_id: user.id,
+        p_days_to_recover: daysToRecover,
+      });
+
+      if (error) throw error;
+      
+      if (data && Array.isArray(data) && data.length > 0) {
+        const row = data[0] as any;
+        if (row.success) {
+          setStreak(prev => ({
+            ...prev,
+            currentStreak: row.new_streak ?? prev.currentStreak,
+            freezeCount: row.freezes_remaining ?? 0,
+            streakAtRisk: false,
+          }));
+        }
+        return {
+          success: row.success,
+          newStreak: row.new_streak,
+          freezesUsed: row.freezes_used,
+          freezesRemaining: row.freezes_remaining,
+          message: row.message,
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error recovering streak:', error);
+      return null;
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchStreak();
   }, [fetchStreak]);
@@ -170,5 +207,6 @@ export function useStreak() {
     recordPractice,
     useFreeze,
     addFreezes,
+    recoverStreak,
   };
 }
