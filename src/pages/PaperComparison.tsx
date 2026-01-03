@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import AppLayout from '@/components/layouts/AppLayout';
@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { GitCompare, FileText, BookOpen, BarChart3 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { GitCompare, FileText, BookOpen, BarChart3, Link2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ExamPaper {
   id: string;
@@ -46,6 +48,8 @@ export default function PaperComparison() {
   const [paper1Questions, setPaper1Questions] = useState<Question[]>([]);
   const [paper2Questions, setPaper2Questions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
+  const [highlightMatches, setHighlightMatches] = useState(true);
+  const [hoveredTopic, setHoveredTopic] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -145,6 +149,19 @@ export default function PaperComparison() {
   const paper2 = papers.find(p => p.id === paper2Id);
   const commonTopics = paper1Id && paper2Id ? getCommonTopics() : [];
 
+  // Build a set of common topics for quick lookup
+  const commonTopicsSet = useMemo(() => new Set(commonTopics), [commonTopics]);
+
+  // Check if a question has a matching topic in the other paper
+  const hasMatchingTopic = (question: Question): boolean => {
+    return question.topic !== null && commonTopicsSet.has(question.topic);
+  };
+
+  // Get matching question count
+  const getMatchingCount = (questions: Question[]): number => {
+    return questions.filter(q => hasMatchingTopic(q)).length;
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -202,23 +219,61 @@ export default function PaperComparison() {
           </Card>
         </div>
 
-        {/* Common Topics */}
-        {paper1Id && paper2Id && commonTopics.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                Common Topics ({commonTopics.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {commonTopics.map(topic => (
-                  <Badge key={topic} variant="secondary">{topic}</Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Highlight Toggle & Common Topics */}
+        {paper1Id && paper2Id && (
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Highlight Toggle */}
+            <Card className="flex-shrink-0">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="highlight-matches"
+                    checked={highlightMatches}
+                    onCheckedChange={setHighlightMatches}
+                  />
+                  <Label htmlFor="highlight-matches" className="flex items-center gap-2 cursor-pointer">
+                    <Link2 className="h-4 w-4" />
+                    Highlight matching topics
+                  </Label>
+                  {highlightMatches && commonTopics.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {getMatchingCount(paper1Questions)} / {getMatchingCount(paper2Questions)} matches
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Common Topics */}
+            {commonTopics.length > 0 && (
+              <Card className="flex-1">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Common Topics ({commonTopics.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {commonTopics.map(topic => (
+                      <Badge 
+                        key={topic} 
+                        variant="secondary"
+                        className={cn(
+                          "cursor-pointer transition-all",
+                          hoveredTopic === topic && "ring-2 ring-primary ring-offset-2"
+                        )}
+                        onMouseEnter={() => setHoveredTopic(topic)}
+                        onMouseLeave={() => setHoveredTopic(null)}
+                      >
+                        {topic}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* Side-by-Side Comparison */}
@@ -296,31 +351,63 @@ export default function PaperComparison() {
                   {/* Questions List */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-sm">Questions</CardTitle>
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span>Questions</span>
+                        {highlightMatches && (
+                          <Badge variant="outline" className="text-xs">
+                            {getMatchingCount(paper1Questions)} matching
+                          </Badge>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ScrollArea className="h-[400px]">
                         <div className="p-4 space-y-3">
-                          {paper1Questions.map((q, idx) => (
-                            <div key={q.id} className="p-3 border rounded-lg space-y-2">
-                              <div className="flex items-start gap-2">
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  Q{q.question_number || idx + 1}
-                                </span>
-                                <p className="text-sm flex-1">{q.question_text}</p>
-                              </div>
-                              <div className="flex gap-2">
-                                {q.topic && (
-                                  <Badge variant="outline" className="text-xs">{q.topic}</Badge>
+                          {paper1Questions.map((q, idx) => {
+                            const isMatching = hasMatchingTopic(q);
+                            const isHovered = hoveredTopic !== null && q.topic === hoveredTopic;
+                            return (
+                              <div 
+                                key={q.id} 
+                                className={cn(
+                                  "p-3 border rounded-lg space-y-2 transition-all",
+                                  highlightMatches && isMatching && "border-primary/50 bg-primary/5",
+                                  isHovered && "ring-2 ring-primary ring-offset-2 bg-primary/10"
                                 )}
-                                {q.difficulty && (
-                                  <Badge className={`text-xs ${getDifficultyColor(q.difficulty)}`}>
-                                    {q.difficulty}
-                                  </Badge>
-                                )}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    Q{q.question_number || idx + 1}
+                                  </span>
+                                  <p className="text-sm flex-1">{q.question_text}</p>
+                                  {highlightMatches && isMatching && (
+                                    <Link2 className="h-4 w-4 text-primary flex-shrink-0" />
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  {q.topic && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className={cn(
+                                        "text-xs cursor-pointer transition-all",
+                                        highlightMatches && isMatching && "border-primary text-primary",
+                                        isHovered && "bg-primary text-primary-foreground"
+                                      )}
+                                      onMouseEnter={() => isMatching && setHoveredTopic(q.topic)}
+                                      onMouseLeave={() => setHoveredTopic(null)}
+                                    >
+                                      {q.topic}
+                                    </Badge>
+                                  )}
+                                  {q.difficulty && (
+                                    <Badge className={`text-xs ${getDifficultyColor(q.difficulty)}`}>
+                                      {q.difficulty}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {paper1Questions.length === 0 && (
                             <p className="text-sm text-muted-foreground text-center py-8">
                               No analyzed questions found
@@ -411,31 +498,63 @@ export default function PaperComparison() {
                   {/* Questions List */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-sm">Questions</CardTitle>
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span>Questions</span>
+                        {highlightMatches && (
+                          <Badge variant="outline" className="text-xs">
+                            {getMatchingCount(paper2Questions)} matching
+                          </Badge>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ScrollArea className="h-[400px]">
                         <div className="p-4 space-y-3">
-                          {paper2Questions.map((q, idx) => (
-                            <div key={q.id} className="p-3 border rounded-lg space-y-2">
-                              <div className="flex items-start gap-2">
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  Q{q.question_number || idx + 1}
-                                </span>
-                                <p className="text-sm flex-1">{q.question_text}</p>
-                              </div>
-                              <div className="flex gap-2">
-                                {q.topic && (
-                                  <Badge variant="outline" className="text-xs">{q.topic}</Badge>
+                          {paper2Questions.map((q, idx) => {
+                            const isMatching = hasMatchingTopic(q);
+                            const isHovered = hoveredTopic !== null && q.topic === hoveredTopic;
+                            return (
+                              <div 
+                                key={q.id} 
+                                className={cn(
+                                  "p-3 border rounded-lg space-y-2 transition-all",
+                                  highlightMatches && isMatching && "border-primary/50 bg-primary/5",
+                                  isHovered && "ring-2 ring-primary ring-offset-2 bg-primary/10"
                                 )}
-                                {q.difficulty && (
-                                  <Badge className={`text-xs ${getDifficultyColor(q.difficulty)}`}>
-                                    {q.difficulty}
-                                  </Badge>
-                                )}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    Q{q.question_number || idx + 1}
+                                  </span>
+                                  <p className="text-sm flex-1">{q.question_text}</p>
+                                  {highlightMatches && isMatching && (
+                                    <Link2 className="h-4 w-4 text-primary flex-shrink-0" />
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  {q.topic && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className={cn(
+                                        "text-xs cursor-pointer transition-all",
+                                        highlightMatches && isMatching && "border-primary text-primary",
+                                        isHovered && "bg-primary text-primary-foreground"
+                                      )}
+                                      onMouseEnter={() => isMatching && setHoveredTopic(q.topic)}
+                                      onMouseLeave={() => setHoveredTopic(null)}
+                                    >
+                                      {q.topic}
+                                    </Badge>
+                                  )}
+                                  {q.difficulty && (
+                                    <Badge className={`text-xs ${getDifficultyColor(q.difficulty)}`}>
+                                      {q.difficulty}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {paper2Questions.length === 0 && (
                             <p className="text-sm text-muted-foreground text-center py-8">
                               No analyzed questions found
