@@ -16,7 +16,8 @@ import {
   Calendar,
   PenLine,
   Files,
-  ClipboardList
+  ClipboardList,
+  Timer
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/compare', label: 'Compare Papers', icon: GitCompare },
   { path: '/year-over-year', label: 'Year Trends', icon: Calendar },
   { path: '/written-practice', label: 'Written Practice', icon: PenLine },
+  { path: '/mock-test', label: 'Timed Mock Test', icon: Timer },
   { path: '/submission-history', label: 'My Progress', icon: ClipboardList },
   { path: '/questions', label: 'Question Bank', icon: Library },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
