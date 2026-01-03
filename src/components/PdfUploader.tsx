@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, Loader2, X } from 'lucide-react';
+import { Upload, FileText, Loader2, X, ScanText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker
@@ -12,17 +13,21 @@ interface PdfUploaderProps {
   disabled?: boolean;
 }
 
+const MIN_TEXT_THRESHOLD = 50; // Minimum characters per page to consider it text-based
+
 export default function PdfUploader({ onTextExtracted, disabled }: PdfUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const extractTextFromPdf = async (file: File): Promise<string> => {
+  const extractTextFromPdf = async (file: File): Promise<{ text: string; isImageBased: boolean; pdf: pdfjsLib.PDFDocumentProxy }> => {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
     let fullText = '';
+    let totalChars = 0;
     
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -31,9 +36,58 @@ export default function PdfUploader({ onTextExtracted, disabled }: PdfUploaderPr
         .map((item: any) => item.str)
         .join(' ');
       fullText += pageText + '\n\n';
+      totalChars += pageText.length;
     }
     
-    return fullText.trim();
+    const avgCharsPerPage = totalChars / pdf.numPages;
+    const isImageBased = avgCharsPerPage < MIN_TEXT_THRESHOLD;
+    
+    return { text: fullText.trim(), isImageBased, pdf };
+  };
+
+  const convertPdfPagesToImages = async (pdf: pdfjsLib.PDFDocumentProxy): Promise<string[]> => {
+    const images: string[] = [];
+    const scale = 2; // Higher scale for better OCR accuracy
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      setProcessingStatus(`Converting page ${i}/${pdf.numPages} to image...`);
+      
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      
+      if (!context) throw new Error('Could not get canvas context');
+      
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+      
+      // Convert to base64 with reduced quality to stay within limits
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+      images.push(imageData);
+    }
+    
+    return images;
+  };
+
+  const performOcr = async (images: string[]): Promise<string> => {
+    setProcessingStatus(`Running OCR on ${images.length} page(s)...`);
+    
+    const response = await supabase.functions.invoke('ocr-pdf', {
+      body: { images },
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message || 'OCR failed');
+    }
+
+    return response.data.text;
   };
 
   const handleFile = useCallback(async (file: File) => {
@@ -49,22 +103,45 @@ export default function PdfUploader({ onTextExtracted, disabled }: PdfUploaderPr
 
     setIsProcessing(true);
     setFileName(file.name);
+    setProcessingStatus('Analyzing PDF...');
 
     try {
-      const text = await extractTextFromPdf(file);
-      if (!text.trim()) {
-        toast.error('Could not extract text from PDF. The file may be image-based.');
-        setFileName(null);
-        return;
+      const { text, isImageBased, pdf } = await extractTextFromPdf(file);
+      
+      if (isImageBased) {
+        toast.info('Detected scanned PDF. Running OCR...');
+        
+        // Convert pages to images
+        const images = await convertPdfPagesToImages(pdf);
+        
+        // Perform OCR via edge function
+        const ocrText = await performOcr(images);
+        
+        if (!ocrText.trim()) {
+          toast.error('OCR could not extract text from the scanned PDF.');
+          setFileName(null);
+          return;
+        }
+        
+        onTextExtracted(ocrText);
+        toast.success(`OCR extracted text from ${pdf.numPages} page(s)`);
+      } else {
+        if (!text.trim()) {
+          toast.error('Could not extract text from PDF.');
+          setFileName(null);
+          return;
+        }
+        onTextExtracted(text);
+        toast.success(`Extracted text from ${file.name}`);
       }
-      onTextExtracted(text);
-      toast.success(`Extracted text from ${file.name}`);
     } catch (error) {
       console.error('Error processing PDF:', error);
-      toast.error('Failed to process PDF file');
+      const message = error instanceof Error ? error.message : 'Failed to process PDF';
+      toast.error(message);
       setFileName(null);
     } finally {
       setIsProcessing(false);
+      setProcessingStatus('');
     }
   }, [onTextExtracted]);
 
@@ -134,7 +211,7 @@ export default function PdfUploader({ onTextExtracted, disabled }: PdfUploaderPr
         {isProcessing ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Processing PDF...</p>
+            <p className="text-sm text-muted-foreground">{processingStatus || 'Processing PDF...'}</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
@@ -143,13 +220,16 @@ export default function PdfUploader({ onTextExtracted, disabled }: PdfUploaderPr
               Drop PDF here or click to upload
             </p>
             <p className="text-xs text-muted-foreground">
+              Supports text-based and scanned PDFs (OCR)
+            </p>
+            <p className="text-xs text-muted-foreground">
               Maximum file size: 20MB
             </p>
           </div>
         )}
       </div>
 
-      {fileName && (
+      {fileName && !isProcessing && (
         <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
           <FileText className="h-4 w-4 text-primary shrink-0" />
           <span className="text-sm flex-1 truncate">{fileName}</span>
