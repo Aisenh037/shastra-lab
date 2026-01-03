@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShastraLabLogo from '@/components/ShastraLabLogo';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -122,17 +123,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           {/* User section */}
           <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center gap-3 px-4 py-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-                <span className="text-sm font-medium text-sidebar-accent-foreground">
-                  {user.email?.charAt(0).toUpperCase()}
-                </span>
+            <div className="flex items-center justify-between px-4 py-2 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
+                  <span className="text-sm font-medium text-sidebar-accent-foreground">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-sidebar-foreground truncate max-w-[120px]">
+                    {user.email}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {user.email}
-                </p>
-              </div>
+              <ThemeToggle />
             </div>
             <Button
               variant="ghost"

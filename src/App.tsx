@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -25,32 +26,34 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/syllabi" element={<Syllabi />} />
-            <Route path="/analyze" element={<Analyze />} />
-            <Route path="/batch-analyze" element={<BatchAnalyze />} />
-            <Route path="/compare" element={<PaperComparison />} />
-            <Route path="/year-over-year" element={<YearOverYear />} />
-            <Route path="/written-practice" element={<WrittenPractice />} />
-            <Route path="/mock-test" element={<MockTest />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/achievements" element={<Achievements />} />
-            <Route path="/questions" element={<Questions />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/submission-history" element={<SubmissionHistory />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/syllabi" element={<Syllabi />} />
+              <Route path="/analyze" element={<Analyze />} />
+              <Route path="/batch-analyze" element={<BatchAnalyze />} />
+              <Route path="/compare" element={<PaperComparison />} />
+              <Route path="/year-over-year" element={<YearOverYear />} />
+              <Route path="/written-practice" element={<WrittenPractice />} />
+              <Route path="/mock-test" element={<MockTest />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/achievements" element={<Achievements />} />
+              <Route path="/questions" element={<Questions />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/submission-history" element={<SubmissionHistory />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
