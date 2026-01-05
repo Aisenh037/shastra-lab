@@ -262,7 +262,3 @@ The app supports light and dark modes with a custom design system:
 ## 📄 License
 
 © 2025 ShastraLab. All rights reserved.
-
----
-
-Built with ❤️ using [Lovable](https://lovable.dev)
