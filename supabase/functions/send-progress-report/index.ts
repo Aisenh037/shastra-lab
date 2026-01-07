@@ -47,16 +47,16 @@ serve(async (req: Request): Promise<Response> => {
 
     if (authHeader && !user_id) {
       const token = authHeader.replace("Bearer ", "");
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) {
+      const { data, error: authError } = await supabase.auth.getClaims(token);
+      if (authError || !data?.claims) {
         console.error("Auth error:", authError);
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      targetUserId = user.id;
-      targetEmail = requestEmail || user.email;
+      targetUserId = data.claims.sub as string;
+      targetEmail = requestEmail || (data.claims.email as string);
     }
 
     if (!targetUserId || !targetEmail) {
