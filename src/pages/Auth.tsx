@@ -1,38 +1,38 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
-import { BookOpen, GraduationCap, BarChart3, Brain } from 'lucide-react';
-import { z } from 'zod';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { BookOpen, GraduationCap, BarChart3, Brain } from "lucide-react";
+import { z } from "zod";
 
-const emailSchema = z.string().email('Please enter a valid email address');
-const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const emailSchema = z.string().email("Please enter a valid email address");
+const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 
 export default function Auth() {
   const navigate = useNavigate();
   const { user, signIn, signUp, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupName, setSignupName] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupName, setSignupName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     if (user && !loading) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   }, [user, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       emailSchema.parse(loginEmail);
       passwordSchema.parse(loginPassword);
@@ -48,14 +48,14 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password. Please try again.');
+      if (error.message.includes("Invalid login credentials")) {
+        toast.error("Invalid email or password. Please try again.");
       } else {
         toast.error(error.message);
       }
     } else {
-      toast.success('Welcome back!');
-      navigate('/dashboard');
+      toast.success("Welcome back!");
+      navigate("/dashboard");
     }
   };
 
@@ -73,7 +73,7 @@ export default function Auth() {
     }
 
     if (signupPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error("Passwords do not match");
       return;
     }
 
@@ -82,14 +82,14 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      if (error.message.includes('already registered')) {
-        toast.error('This email is already registered. Please sign in instead.');
+      if (error.message.includes("already registered")) {
+        toast.error("This email is already registered. Please sign in instead.");
       } else {
         toast.error(error.message);
       }
     } else {
-      toast.success('Account created successfully! Welcome aboard.');
-      navigate('/dashboard');
+      toast.success("Account created successfully! Welcome aboard.");
+      navigate("/dashboard");
     }
   };
 
@@ -110,13 +110,13 @@ export default function Auth() {
             <div className="p-3 bg-primary-foreground/10 rounded-xl">
               <GraduationCap className="h-10 w-10" />
             </div>
-            <h1 className="text-3xl font-display font-bold">ExamAnalyzer</h1>
+            <h1 className="text-3xl font-display font-bold">Shastra Lab</h1>
           </div>
-          
+
           <h2 className="text-4xl font-display font-bold mb-6 leading-tight">
             Transform Exam Papers into Actionable Insights
           </h2>
-          
+
           <p className="text-lg text-primary-foreground/80 mb-10">
             AI-powered analysis for educators, coaching institutes, and exam preparation organizations.
           </p>
@@ -147,9 +147,7 @@ export default function Auth() {
               <span className="text-xl font-display font-bold">ExamAnalyzer</span>
             </div>
             <CardTitle className="text-2xl font-display">Welcome</CardTitle>
-            <CardDescription>
-              Sign in to your account or create a new one
-            </CardDescription>
+            <CardDescription>Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
@@ -183,7 +181,7 @@ export default function Auth() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Signing in...' : 'Sign In'}
+                    {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </TabsContent>
@@ -234,7 +232,7 @@ export default function Auth() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Creating account...' : 'Create Account'}
+                    {isLoading ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
               </TabsContent>
