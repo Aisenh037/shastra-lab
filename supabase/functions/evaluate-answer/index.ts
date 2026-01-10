@@ -87,9 +87,9 @@ Provide your evaluation as a JSON object with this exact structure:
 
     console.log("Sending evaluation request to Azure OpenAI...");
 
-    // Azure OpenAI API call - using gpt-4o deployment
-    const deploymentName = "gpt-4o";
-    const apiUrl = `${AZURE_ENDPOINT}openai/deployments/${deploymentName}/chat/completions?api-version=2024-02-01`;
+    // Azure OpenAI API call - using the configured deployment
+    const deploymentName = "gpt-5.2-chat";
+    const apiUrl = `${AZURE_ENDPOINT}openai/deployments/${deploymentName}/chat/completions?api-version=2025-04-01-preview`;
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -102,8 +102,7 @@ Provide your evaluation as a JSON object with this exact structure:
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 2000,
-        temperature: 0.7,
+        max_completion_tokens: 2000,
       }),
     });
 
