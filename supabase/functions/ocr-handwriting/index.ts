@@ -1,96 +1,117 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { imageData } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
     if (!imageData) {
-      throw new Error("No image provided");
+      throw new Error("Image data is required");
     }
 
-    console.log("Processing handwritten answer image for OCR");
+    const AZURE_ENDPOINT = Deno.env.get("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT");
+    const AZURE_API_KEY = Deno.env.get("AZURE_DOCUMENT_INTELLIGENCE_API_KEY");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    if (!AZURE_ENDPOINT || !AZURE_API_KEY) {
+      throw new Error("Azure Document Intelligence credentials not configured");
+    }
+
+    console.log("Processing handwritten answer with Azure Document Intelligence");
+
+    // Remove data URL prefix if present
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+    const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    // Use Azure Document Intelligence Read API
+    const analyzeUrl = `${AZURE_ENDPOINT}documentintelligence/documentModels/prebuilt-read:analyze?api-version=2024-02-29-preview`;
+
+    const analyzeResponse = await fetch(analyzeUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        "Ocp-Apim-Subscription-Key": AZURE_API_KEY,
+        "Content-Type": "application/octet-stream",
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `You are an expert at reading handwritten text. Extract ALL handwritten text from this answer sheet image.
-
-Instructions:
-- Read the handwriting carefully, even if it's cursive or messy
-- Preserve paragraph structure and line breaks
-- Include any headings, bullet points, or numbered lists
-- If text is unclear, make your best interpretation
-- Return ONLY the extracted text, formatted in clean paragraphs
-- Do not add any commentary or notes about the handwriting quality`
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageData
-                }
-              }
-            ]
-          }
-        ],
-      }),
+      body: imageBuffer,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
+    if (!analyzeResponse.ok) {
+      const errorText = await analyzeResponse.text();
+      console.error("Azure analyze error:", analyzeResponse.status, errorText);
+      throw new Error(`Azure API error: ${analyzeResponse.status}`);
     }
 
-    const data = await response.json();
-    const extractedText = data.choices[0].message.content;
+    // Get the operation location for polling
+    const operationLocation = analyzeResponse.headers.get("Operation-Location");
+    if (!operationLocation) {
+      throw new Error("No operation location returned");
+    }
 
-    console.log(`OCR complete. Extracted ${extractedText.length} characters`);
+    console.log("Polling for OCR results...");
 
-    return new Response(JSON.stringify({ text: extractedText.trim() }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Poll for results
+    let result = null;
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const resultResponse = await fetch(operationLocation, {
+        headers: {
+          "Ocp-Apim-Subscription-Key": AZURE_API_KEY,
+        },
+      });
+
+      if (!resultResponse.ok) {
+        const errorText = await resultResponse.text();
+        console.error("Azure result error:", resultResponse.status, errorText);
+        throw new Error(`Azure polling error: ${resultResponse.status}`);
+      }
+
+      result = await resultResponse.json();
+      
+      if (result.status === "succeeded") {
+        break;
+      } else if (result.status === "failed") {
+        throw new Error("Azure OCR processing failed");
+      }
+      
+      attempts++;
+    }
+
+    if (!result || result.status !== "succeeded") {
+      throw new Error("OCR processing timed out");
+    }
+
+    // Extract text from result
+    let extractedText = "";
+    if (result.analyzeResult?.content) {
+      extractedText = result.analyzeResult.content;
+    } else if (result.analyzeResult?.paragraphs) {
+      extractedText = result.analyzeResult.paragraphs
+        .map((p: { content: string }) => p.content)
+        .join("\n\n");
+    }
+
+    console.log("OCR successful, extracted", extractedText.length, "characters");
+
+    return new Response(
+      JSON.stringify({ text: extractedText }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
-    console.error('Handwriting OCR Error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error("Error in ocr-handwriting:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });

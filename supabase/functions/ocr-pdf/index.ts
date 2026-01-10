@@ -1,96 +1,130 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function processImageWithAzure(imageData: string, apiKey: string, endpoint: string): Promise<string> {
+  // Remove data URL prefix if present
+  const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+  const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+  const analyzeUrl = `${endpoint}documentintelligence/documentModels/prebuilt-read:analyze?api-version=2024-02-29-preview`;
+
+  const analyzeResponse = await fetch(analyzeUrl, {
+    method: "POST",
+    headers: {
+      "Ocp-Apim-Subscription-Key": apiKey,
+      "Content-Type": "application/octet-stream",
+    },
+    body: imageBuffer,
+  });
+
+  if (!analyzeResponse.ok) {
+    const errorText = await analyzeResponse.text();
+    console.error("Azure analyze error:", analyzeResponse.status, errorText);
+    throw new Error(`Azure API error: ${analyzeResponse.status}`);
+  }
+
+  const operationLocation = analyzeResponse.headers.get("Operation-Location");
+  if (!operationLocation) {
+    throw new Error("No operation location returned");
+  }
+
+  // Poll for results
+  let result = null;
+  let attempts = 0;
+  const maxAttempts = 30;
+
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const resultResponse = await fetch(operationLocation, {
+      headers: {
+        "Ocp-Apim-Subscription-Key": apiKey,
+      },
+    });
+
+    if (!resultResponse.ok) {
+      throw new Error(`Azure polling error: ${resultResponse.status}`);
+    }
+
+    result = await resultResponse.json();
+    
+    if (result.status === "succeeded") {
+      break;
+    } else if (result.status === "failed") {
+      throw new Error("Azure OCR processing failed");
+    }
+    
+    attempts++;
+  }
+
+  if (!result || result.status !== "succeeded") {
+    throw new Error("OCR processing timed out");
+  }
+
+  // Extract text from result
+  if (result.analyzeResult?.content) {
+    return result.analyzeResult.content;
+  } else if (result.analyzeResult?.paragraphs) {
+    return result.analyzeResult.paragraphs
+      .map((p: { content: string }) => p.content)
+      .join("\n\n");
+  }
+  
+  return "";
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { images } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
     if (!images || !Array.isArray(images) || images.length === 0) {
-      throw new Error("No images provided");
+      throw new Error("Images array is required");
     }
 
-    console.log(`Processing ${images.length} page(s) for OCR`);
+    const AZURE_ENDPOINT = Deno.env.get("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT");
+    const AZURE_API_KEY = Deno.env.get("AZURE_DOCUMENT_INTELLIGENCE_API_KEY");
 
-    let fullText = '';
+    if (!AZURE_ENDPOINT || !AZURE_API_KEY) {
+      throw new Error("Azure Document Intelligence credentials not configured");
+    }
 
+    console.log(`Processing ${images.length} pages with Azure Document Intelligence`);
+
+    // Process each page
+    const textParts: string[] = [];
     for (let i = 0; i < images.length; i++) {
-      const imageData = images[i];
       console.log(`Processing page ${i + 1}/${images.length}`);
-
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Extract ALL text from this exam paper image. Preserve the exact wording, question numbers, and formatting. Return ONLY the extracted text, nothing else."
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: imageData
-                  }
-                }
-              ]
-            }
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`AI gateway error for page ${i + 1}:`, response.status, errorText);
-        
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-            status: 429,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+      try {
+        const pageText = await processImageWithAzure(images[i], AZURE_API_KEY, AZURE_ENDPOINT);
+        if (pageText) {
+          textParts.push(`--- Page ${i + 1} ---\n${pageText}`);
         }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-            status: 402,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        throw new Error(`AI gateway error: ${response.status}`);
+      } catch (pageError) {
+        console.error(`Error processing page ${i + 1}:`, pageError);
+        textParts.push(`--- Page ${i + 1} ---\n[Error extracting text from this page]`);
       }
-
-      const data = await response.json();
-      const pageText = data.choices[0].message.content;
-      fullText += `--- Page ${i + 1} ---\n${pageText}\n\n`;
     }
 
-    console.log(`OCR complete. Extracted ${fullText.length} characters`);
+    const combinedText = textParts.join("\n\n");
+    console.log("OCR complete, extracted", combinedText.length, "characters");
 
-    return new Response(JSON.stringify({ text: fullText.trim() }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ text: combinedText }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
-    console.error('OCR Error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error("Error in ocr-pdf:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });

@@ -35,9 +35,11 @@ serve(async (req) => {
       topic,
     }: EvaluationRequest = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const AZURE_ENDPOINT = Deno.env.get("AZURE_OPENAI_ENDPOINT");
+    const AZURE_API_KEY = Deno.env.get("AZURE_OPENAI_API_KEY");
+
+    if (!AZURE_ENDPOINT || !AZURE_API_KEY) {
+      throw new Error("Azure OpenAI credentials not configured");
     }
 
     const systemPrompt = `You are an expert UPSC Mains answer evaluator and mentor. Your role is to evaluate written answers and provide constructive, detailed feedback to help aspirants improve their answer writing skills.
@@ -83,39 +85,40 @@ Provide your evaluation as a JSON object with this exact structure:
   "modelComparison": "<if model answer provided, explain gaps and how to bridge them; otherwise suggest ideal answer structure>"
 }`;
 
-    console.log("Sending evaluation request to Lovable AI...");
+    console.log("Sending evaluation request to Azure OpenAI...");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Azure OpenAI API call - using gpt-4o deployment
+    const deploymentName = "gpt-4o";
+    const apiUrl = `${AZURE_ENDPOINT}openai/deployments/${deploymentName}/chat/completions?api-version=2024-02-01`;
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "api-key": AZURE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        max_tokens: 2000,
+        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Azure OpenAI error:", response.status, errorText);
+      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      
+      throw new Error(`Azure OpenAI error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -125,7 +128,7 @@ Provide your evaluation as a JSON object with this exact structure:
       throw new Error("No response content from AI");
     }
 
-    console.log("Raw AI response:", content);
+    console.log("Raw AI response received, parsing...");
 
     // Parse the JSON response
     let evaluation;
@@ -152,7 +155,7 @@ Provide your evaluation as a JSON object with this exact structure:
       };
     }
 
-    console.log("Evaluation completed successfully");
+    console.log("Evaluation completed successfully, score:", evaluation.score);
 
     return new Response(JSON.stringify(evaluation), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
