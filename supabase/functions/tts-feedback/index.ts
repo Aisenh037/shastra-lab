@@ -16,65 +16,73 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voice = "alloy" }: TTSRequest = await req.json();
+    const { text, voice = "en-US-AriaNeural" }: TTSRequest = await req.json();
     
     if (!text) {
       throw new Error("Text is required");
     }
 
+    const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_API_KEY");
+    const AZURE_SPEECH_REGION = Deno.env.get("AZURE_SPEECH_REGION") || "eastus";
+
+    if (!AZURE_SPEECH_KEY) {
+      throw new Error("Azure Speech credentials not configured");
+    }
+
     // Limit text length for TTS
     const truncatedText = text.slice(0, 4000);
     
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    // Create SSML for Azure Speech
+    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+      <voice name='${voice}'>
+        <prosody rate='0.9' pitch='0%'>
+          ${truncatedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        </prosody>
+      </voice>
+    </speak>`;
 
-    // Use Lovable AI to generate a summary for TTS (since direct TTS isn't available)
-    // We'll generate a concise audio-friendly summary
-    const summaryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a friendly tutor summarizing evaluation feedback for a student. 
-Convert the feedback into a natural, conversational summary that would sound good when read aloud.
-Keep it concise (under 200 words), encouraging, and actionable.
-Focus on: overall score, top strengths, key improvements needed.
-Don't use bullet points or special formatting - write flowing prose.`,
-          },
-          {
-            role: "user",
-            content: `Summarize this evaluation feedback for audio playback:\n\n${truncatedText}`,
-          },
-        ],
-      }),
-    });
+    console.log("Calling Azure Speech TTS...");
 
-    if (!summaryResponse.ok) {
-      if (summaryResponse.status === 429) {
+    const response = await fetch(
+      `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: "POST",
+        headers: {
+          "Ocp-Apim-Subscription-Key": AZURE_SPEECH_KEY,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
+        },
+        body: ssml,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Azure Speech error:", response.status, errorText);
+      
+      if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error("Failed to generate summary");
+      
+      throw new Error(`Azure Speech error: ${response.status}`);
     }
 
-    const summaryData = await summaryResponse.json();
-    const summary = summaryData.choices?.[0]?.message?.content || truncatedText;
+    // Convert audio to base64
+    const arrayBuffer = await response.arrayBuffer();
+    const base64Audio = btoa(
+      String.fromCharCode(...new Uint8Array(arrayBuffer))
+    );
 
-    // Return the text summary (client will use Web Speech API for TTS)
+    console.log("TTS complete, audio size:", arrayBuffer.byteLength, "bytes");
+
     return new Response(
       JSON.stringify({ 
-        summary,
-        message: "Use Web Speech API on client to read this aloud" 
+        audioContent: base64Audio,
+        format: "mp3",
+        summary: truncatedText.slice(0, 200) + "..."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
