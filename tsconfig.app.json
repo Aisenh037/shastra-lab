@@ -14,6 +14,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+<<<<<<< HEAD
     /* Linting */
     "strict": false,
     "noUnusedLocals": false,
@@ -21,6 +22,28 @@
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
 
+=======
+    /* Strict Type Checking - Industry Grade */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+
+    /* Additional Checks */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+
+    /* Path Mapping */
+>>>>>>> f3bfcda (updated the mvp spec to industry-grade)
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

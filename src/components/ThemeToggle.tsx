@@ -51,9 +51,22 @@ export function ThemeToggleSimple({ className = '' }: { className?: string }) {
       size="icon" 
       onClick={toggleTheme}
       className={`h-9 w-9 ${className}`}
+<<<<<<< HEAD
     >
       <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
       <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+=======
+      aria-label="Toggle theme"
+    >
+      <Sun 
+        data-testid="sun-icon"
+        className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" 
+      />
+      <Moon 
+        data-testid="moon-icon"
+        className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" 
+      />
+>>>>>>> f3bfcda (updated the mvp spec to industry-grade)
       <span className="sr-only">Toggle theme</span>
     </Button>
   );
